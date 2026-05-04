@@ -1,0 +1,178 @@
+from __future__ import annotations
+
+import secrets
+
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_user, logout_user
+
+from . import db
+from .decorators import user_required
+from .models import Competition, CompetitionPlayer, Hole, Score, User
+from .scoring_helpers import player_result
+from .validators import validate_email_address
+
+PLAYER_COMPETITION_IDS = "player_competition_ids"
+
+bp = Blueprint("user", __name__)
+
+
+def _competition_ids_matching_password(user: User, password: str) -> list[int]:
+    ids: list[int] = []
+    for entry in CompetitionPlayer.query.filter_by(user_id=user.id).all():
+        if entry.competition.check_password(password):
+            ids.append(entry.competition_id)
+    return ids
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated and isinstance(current_user, User):
+        if session.get(PLAYER_COMPETITION_IDS):
+            return redirect(url_for("user.dashboard"))
+        logout_user()
+
+    if request.method == "POST":
+        email_raw = request.form.get("email", "")
+        password = request.form.get("password", "")
+        try:
+            email = validate_email_address(email_raw)
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template("user/login.html")
+
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            flash("Invalid email or password.", "error")
+            return render_template("user/login.html")
+
+        matched = _competition_ids_matching_password(user, password)
+        if not matched:
+            flash(
+                "Wrong password, or you are not entered in any competition that uses it. "
+                "Use the competition password from your organiser (not a personal password).",
+                "error",
+            )
+            return render_template("user/login.html")
+
+        login_user(user)
+        session[PLAYER_COMPETITION_IDS] = matched
+        next_url = request.args.get("next")
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for("user.dashboard"))
+
+    return render_template("user/login.html")
+
+
+@bp.route("/logout")
+def logout():
+    session.pop(PLAYER_COMPETITION_IDS, None)
+    if current_user.is_authenticated and isinstance(current_user, User):
+        logout_user()
+    return redirect(url_for("user.login"))
+
+
+@bp.route("/player")
+@user_required
+def dashboard():
+    allowed = set(session.get(PLAYER_COMPETITION_IDS, []))
+    entries = (
+        CompetitionPlayer.query.filter_by(user_id=current_user.id)
+        .filter(CompetitionPlayer.competition_id.in_(allowed))
+        .join(Competition)
+        .order_by(Competition.name)
+        .all()
+    )
+    summaries = []
+    for e in entries:
+        pr = player_result(e.competition, current_user)
+        summaries.append(
+            {
+                "competition": e.competition,
+                "total_points": pr["total_points"],
+                "playing_handicap": pr["playing_handicap"],
+            }
+        )
+    return render_template("user/dashboard.html", entries=summaries)
+
+
+@bp.route("/player/competition/<int:comp_id>", methods=["GET", "POST"])
+@user_required
+def competition_scorecard(comp_id: int):
+    allowed = session.get(PLAYER_COMPETITION_IDS, [])
+    if comp_id not in allowed:
+        flash("You can only open competitions you signed in to with that competition’s password.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    comp = Competition.query.get_or_404(comp_id)
+    entry = CompetitionPlayer.query.filter_by(
+        competition_id=comp.id, user_id=current_user.id
+    ).first()
+    if not entry:
+        flash("You are not in this competition.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    holes = (
+        Hole.query.filter_by(course_id=comp.course_id)
+        .order_by(Hole.hole_number)
+        .all()
+    )
+
+    if request.method == "POST":
+        if comp.locked:
+            flash("This competition is locked. Scores cannot be changed.", "error")
+            return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
+
+        for h in holes:
+            raw = request.form.get(f"strokes_{h.hole_number}", "").strip()
+            if raw == "":
+                Score.query.filter_by(
+                    competition_id=comp.id,
+                    user_id=current_user.id,
+                    hole_number=h.hole_number,
+                ).delete(synchronize_session=False)
+                continue
+            try:
+                strokes = int(raw)
+            except ValueError:
+                flash(f"Hole {h.hole_number}: invalid strokes.", "error")
+                return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
+            if strokes < 1 or strokes > 20:
+                flash(f"Hole {h.hole_number}: strokes must be 1–20.", "error")
+                return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
+
+            score = Score.query.filter_by(
+                competition_id=comp.id,
+                user_id=current_user.id,
+                hole_number=h.hole_number,
+            ).first()
+            if score:
+                score.gross_strokes = strokes
+            else:
+                db.session.add(
+                    Score(
+                        competition_id=comp.id,
+                        user_id=current_user.id,
+                        hole_number=h.hole_number,
+                        gross_strokes=strokes,
+                    )
+                )
+        db.session.commit()
+        flash("Scores saved.", "success")
+        return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
+
+    pr = player_result(comp, current_user)
+    phc = pr["playing_handicap"]
+    si_flat = phc > 0 and phc % 18 == 0
+    return render_template(
+        "user/scorecard.html",
+        competition=comp,
+        scorecard_readonly=comp.locked,
+        handicap_splits_evenly_by_18=si_flat,
+        rows=pr["rows"],
+        total_points=pr["total_points"],
+        playing_handicap=pr["playing_handicap"],
+        course_par_total=pr["course_par_total"],
+        gross_total=pr["gross_total"],
+        target_gross_total=pr["target_gross_total"],
+    )

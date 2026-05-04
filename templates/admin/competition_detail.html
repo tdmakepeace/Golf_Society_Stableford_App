@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ competition.name }}{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>{{ competition.name }}</h1>
+  <p class="muted">Course: <strong>{{ competition.course.display_label }}</strong></p>
+
+  {% if competition.locked %}
+    <p class="flash flash-info"><strong>Locked.</strong> Players cannot edit scores. Player list, import, password, and removals are disabled until you unlock.</p>
+  {% endif %}
+
+  {% if not competition.password_hash %}
+    <p class="flash flash-error">Set a <strong>competition password</strong> below so players can sign in (same password for everyone in this event).</p>
+  {% endif %}
+
+  <p class="actions-bar">
+    <a class="btn secondary" href="{{ url_for('admin.competition_results', comp_id=competition.id) }}">Results</a>
+    <form method="post" action="{{ url_for('admin.competition_set_locked', comp_id=competition.id) }}" class="inline-form">
+      {% if competition.locked %}
+        <input type="hidden" name="locked" value="0">
+        <button type="submit" class="btn secondary">Unlock competition</button>
+      {% else %}
+        <input type="hidden" name="locked" value="1">
+        <button type="submit" class="btn secondary" onclick="return confirm('Lock this competition? Players will no longer be able to enter or change scores.');">Lock competition</button>
+      {% endif %}
+    </form>
+    <form method="post" action="{{ url_for('admin.competition_delete', comp_id=competition.id) }}" class="inline-form" onsubmit="return confirm('Delete this competition and all scores?');">
+      <button type="submit" class="btn danger">Delete competition</button>
+    </form>
+  </p>
+
+  <section class="card">
+    <h2>Competition password</h2>
+    {% if competition.locked %}
+      <p class="muted">Unlock the competition to change the password.</p>
+    {% else %}
+      <p class="muted">Players use this password together with their email. Enter a new value anytime to replace the old one (min 8 characters — e.g. event date).</p>
+      <form method="post" action="{{ url_for('admin.competition_set_password', comp_id=competition.id) }}" class="form">
+        <label>New competition password
+          <input type="password" name="competition_password" required autocomplete="new-password" minlength="8" placeholder="e.g. 20260503 or SpringOuting26">
+        </label>
+        <button type="submit" class="btn primary">Save password</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Import players (CSV)</h2>
+    {% if competition.locked %}
+      <p class="muted">Unlock the competition to import players.</p>
+    {% else %}
+      <p class="muted">Columns: <code>email</code> and <code>handicap</code> (aliases: <code>e_mail</code>, <code>playing_handicap</code>, <code>hcp</code>). Header row required. No passwords in the file — players use the <strong>competition password</strong> above.</p>
+      <form method="post" action="{{ url_for('admin.competition_import_players', comp_id=competition.id) }}" enctype="multipart/form-data" class="form">
+        <label>CSV file
+          <input type="file" name="csv_file" accept=".csv,text/csv" required>
+        </label>
+        <button type="submit" class="btn primary">Import</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Add or update one player</h2>
+    {% if competition.locked %}
+      <p class="muted">Unlock the competition to add or update players.</p>
+    {% else %}
+      <p class="muted">Email and handicap only. New players get an account automatically; they sign in with this competition’s password.</p>
+      <p class="muted small">Playing handicap that is a multiple of 18 (18, 36, 54) gives <strong>one full set per hole</strong> — every hole shows the same HCP shots and stroke index only matters for scores above that. Use 17, 20, etc. to see spare shots follow stroke index (18 = hardest first).</p>
+      <form method="post" action="{{ url_for('admin.competition_add_player', comp_id=competition.id) }}" class="form inline-grid">
+        <label>Email
+          <input type="email" name="email" required>
+        </label>
+        <label>Playing handicap (0–54)
+          <input type="number" name="playing_handicap" min="0" max="54" value="17" required>
+        </label>
+        <button type="submit" class="btn primary">Save player</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Players</h2>
+    {% if competition.locked %}
+      <p class="muted small">Unlock the competition to remove a player from this event (that also deletes their scores for this competition only).</p>
+    {% endif %}
+    {% if players %}
+      <table class="data">
+        <thead>
+          <tr><th>Email</th><th>Playing HCP</th>{% if not competition.locked %}<th></th>{% endif %}</tr>
+        </thead>
+        <tbody>
+          {% for p in players %}
+            <tr>
+              <td>{{ p.user.email }}</td>
+              <td>{{ p.playing_handicap }}</td>
+              {% if not competition.locked %}
+              <td class="actions">
+                <form method="post" action="{{ url_for('admin.competition_remove_player', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form" onsubmit="return confirm('Remove {{ p.user.email }} from this competition? Their scores for this event will be deleted.');">
+                  <button type="submit" class="btn danger small">Remove</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No players yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Super admin · Super admins{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Super admins</h1>
+  <p class="muted">Anyone listed here can create societies, lock them, and reset society admin passwords. Keep at least one account.</p>
+
+  <section class="card">
+    <h2>Add super admin</h2>
+    <form method="post" action="{{ url_for('super_admin.super_admin_new') }}" class="form inline-grid">
+      <label>Email
+        <input type="email" name="email" required autocomplete="username">
+      </label>
+      <label>Password
+        <input type="password" name="password" required autocomplete="new-password">
+      </label>
+      <label>Confirm password
+        <input type="password" name="password_confirm" required autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn primary">Add super admin</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>All super admins</h2>
+    {% if super_admins %}
+      <table class="data">
+        <thead>
+          <tr><th>Email</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for sa in super_admins %}
+            <tr>
+              <td>{{ sa.email }}{% if sa.id == current_user.id %} <span class="muted">(you)</span>{% endif %}</td>
+              <td class="actions">
+                {% if super_admins|length > 1 and sa.id != current_user.id %}
+                  <form method="post" action="{{ url_for('super_admin.super_admin_delete', super_admin_id=sa.id) }}" class="inline-form" onsubmit="return confirm('Remove this super admin? They will no longer be able to sign in.');">
+                    <button type="submit" class="btn danger">Remove</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No super admins (unexpected).</p>
+    {% endif %}
+  </section>
+{% endblock %}

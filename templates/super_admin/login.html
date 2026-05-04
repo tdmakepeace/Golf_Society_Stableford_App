@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Super admin · Golf Society Stableford App{% endblock %}
+{% block home_href %}{{ url_for('main.index') }}{% endblock %}
+{% block nav %}
+  <nav class="nav">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <a class="nav-btn" href="{{ url_for('admin.login') }}">Society admin</a>
+    <a class="nav-btn" href="{{ url_for('user.login') }}">Player login</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <h1>Super admin</h1>
+  <p class="muted">Create societies and their first society admin. Society admins manage courses and competitions.</p>
+  <form method="post" class="card form">
+    <label>Email
+      <input type="email" name="email" required autocomplete="username">
+    </label>
+    <label>Password
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button type="submit" class="btn primary">Sign in</button>
+  </form>
+{% endblock %}

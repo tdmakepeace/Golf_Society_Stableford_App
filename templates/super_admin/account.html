@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Super admin · My password{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Change your password</h1>
+  <p class="muted">This only affects your super admin sign-in, not society admins or players.</p>
+  <form method="post" class="card form">
+    <label>Current password
+      <input type="password" name="current_password" required autocomplete="current-password">
+    </label>
+    <label>New password
+      <input type="password" name="new_password" required autocomplete="new-password">
+    </label>
+    <label>Confirm new password
+      <input type="password" name="new_password_confirm" required autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn primary">Update password</button>
+    <a class="btn secondary" href="{{ url_for('super_admin.dashboard') }}">Cancel</a>
+  </form>
+{% endblock %}

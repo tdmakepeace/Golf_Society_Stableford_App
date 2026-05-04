@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}New competition{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>New competition</h1>
+  <form method="post" class="card form">
+    <label>Name
+      <input type="text" name="name" required>
+    </label>
+    <label>Course
+      <select name="course_id" required>
+        {% for c in courses %}
+          <option value="{{ c.id }}" {% if selected_id is defined and selected_id == c.id %}selected{% endif %}>{{ c.display_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Competition password <span class="muted">(min 8 chars — shared by all players)</span>
+      <input type="password" name="competition_password" required autocomplete="new-password" minlength="8" placeholder="e.g. event date">
+    </label>
+    <button type="submit" class="btn primary">Create</button>
+  </form>
+{% endblock %}

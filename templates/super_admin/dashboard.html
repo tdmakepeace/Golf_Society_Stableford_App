@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Super admin · Dashboard{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Societies</h1>
+  <p class="muted">Each society has its own admins, shared courses, and competitions.</p>
+  <p><a class="btn primary" href="{{ url_for('super_admin.society_new') }}">Create society + first admin</a></p>
+  <section class="card">
+    {% if societies %}
+      <ul class="list">
+        {% for s in societies %}
+          <li>
+            <strong>{{ s.name }}</strong>
+            {% if s.locked %}<span class="muted">(locked)</span>{% endif %}
+            — {{ s.admins.count() }} admin(s)
+            <a href="{{ url_for('super_admin.society_admins', society_id=s.id) }}">Admins &amp; passwords</a>
+            <form method="post" action="{{ url_for('super_admin.society_set_locked', society_id=s.id) }}" class="inline-form">
+              <input type="hidden" name="locked" value="{{ 0 if s.locked else 1 }}">
+              <button type="submit" class="btn {% if s.locked %}primary{% else %}secondary{% endif %}">{% if s.locked %}Unlock society{% else %}Lock society{% endif %}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No societies yet. Create one to add the first society admin.</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Society admin login · Golf Society Stableford App{% endblock %}
+{% block home_href %}{{ url_for('main.index') }}{% endblock %}
+{% block nav %}
+  <nav class="nav">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <a class="nav-btn" href="{{ url_for('user.login') }}">Player login</a>
+    <a class="nav-btn" href="{{ url_for('super_admin.login') }}">Super admin</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <h1>Society admin login</h1>
+  <p class="muted">Use the email and password for your society (from your super admin).</p>
+  <form method="post" class="card form">
+    <label>Email
+      <input type="email" name="email" required autocomplete="username">
+    </label>
+    <label>Password
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button type="submit" class="btn primary">Sign in</button>
+  </form>
+{% endblock %}

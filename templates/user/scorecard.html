@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ competition.name }}{% endblock %}
+{% block home_href %}{{ url_for('user.dashboard') }}{% endblock %}
+{% block nav %}
+  <nav class="nav">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <a class="nav-btn" href="{{ url_for('user.dashboard') }}">My competitions</a>
+    <a class="nav-btn nav-btn--ghost" href="{{ url_for('user.logout') }}">Logout</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <h1>{{ competition.name }}</h1>
+  <p class="muted">{{ competition.course.display_label }} · Playing handicap <strong>{{ playing_handicap }}</strong></p>
+  {% if handicap_splits_evenly_by_18 %}
+    <p class="muted small">This handicap is a multiple of 18, so you get the same number of shots on every hole; stroke index only affects handicaps with a remainder (e.g. 17, 19, 20).</p>
+  {% endif %}
+  <p class="highlight">Total Stableford points: <strong>{{ total_points }}</strong></p>
+
+  {% if scorecard_readonly %}
+    <p class="flash flash-info">This competition has been locked by the organiser. You can view your card but scores cannot be changed.</p>
+  {% endif %}
+
+  {% if scorecard_readonly %}
+  <div class="card">
+  {% else %}
+  <form method="post" class="card">
+  {% endif %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Hole</th>
+            <th>Par</th>
+            <th>SI</th>
+            <th>HCP shots</th>
+            <th>Par + HCP<br><span class="th-sub">(gross for net par)</span></th>
+            <th>Your shots</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.hole }}</td>
+              <td>{{ r.par }}</td>
+              <td>{{ r.stroke_index }}</td>
+              <td>{{ r.strokes_received }}</td>
+              <td>{{ r.net_par_gross }}</td>
+              <td>
+                {% if scorecard_readonly %}
+                  {{ r.gross if r.gross is not none else '—' }}
+                {% else %}
+                  <input type="number" name="strokes_{{ r.hole }}" min="1" max="20"
+                    value="{{ r.gross if r.gross else '' }}" placeholder="—">
+                {% endif %}
+              </td>
+              <td>{{ r.points }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="4">Round totals</th>
+            <th>{{ target_gross_total }}</th>
+            <th>{{ gross_total if gross_total is not none else '—' }}</th>
+            <th><strong>{{ total_points }}</strong></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="muted small">Par is the course hole par. “Par + HCP” is the gross score that would be net par on that hole with your playing handicap.</p>
+    {% if not scorecard_readonly %}
+      <button type="submit" class="btn primary">Save scores</button>
+    {% endif %}
+  {% if scorecard_readonly %}
+  </div>
+  {% else %}
+  </form>
+  {% endif %}
+{% endblock %}

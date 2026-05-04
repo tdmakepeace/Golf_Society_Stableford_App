@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Edit admin{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Edit admin</h1>
+  <form method="post" class="card form">
+    <label>Email
+      <input type="email" name="email" required value="{{ edit_admin.email }}" autocomplete="username">
+    </label>
+    <label>New password <span class="muted">(leave blank to keep current)</span>
+      <input type="password" name="new_password" autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn primary">Save</button>
+    <a class="btn secondary" href="{{ url_for('admin.admins_list') }}">Cancel</a>
+  </form>
+{% endblock %}

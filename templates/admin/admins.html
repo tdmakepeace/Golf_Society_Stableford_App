@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Admins{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Admin users</h1>
+  <p class="muted">Any admin can add or edit other admins. An admin cannot be deleted while they still own courses or competitions.</p>
+
+  <section class="card">
+    <h2>Add admin</h2>
+    <p class="muted">Password must meet the usual rules (8+ chars, number, upper, lower, symbol).</p>
+    <form method="post" action="{{ url_for('admin.admin_new') }}" class="form inline-grid">
+      <label>Email
+        <input type="email" name="email" required autocomplete="username">
+      </label>
+      <label>Password
+        <input type="password" name="password" required autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn primary">Add admin</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>All admins</h2>
+    {% if admins %}
+      <table class="data">
+        <thead>
+          <tr><th>Email</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for a in admins %}
+            <tr>
+              <td>{{ a.email }}{% if a.id == current_user.id %} <span class="muted">(you)</span>{% endif %}</td>
+              <td class="actions">
+                <a href="{{ url_for('admin.admin_edit', admin_id=a.id) }}">Edit</a>
+                {% if admins|length > 1 %}
+                  <form method="post" action="{{ url_for('admin.admin_delete', admin_id=a.id) }}" class="inline-form" onsubmit="return confirm('Remove this admin?');">
+                    <button type="submit" class="btn danger">Remove</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No admins.</p>
+    {% endif %}
+  </section>
+{% endblock %}

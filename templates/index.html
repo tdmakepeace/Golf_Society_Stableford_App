@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Golf Society Stableford App · Sign in{% endblock %}
+{% block home_href %}{{ url_for('main.index') }}{% endblock %}
+{% block nav %}{% endblock %}
+{% block body %}
+  <h1>Golf Society Stableford App</h1>
+  <p class="muted">Choose how you want to sign in.</p>
+  <div class="landing-actions card">
+    <a class="btn primary landing-btn" href="{{ url_for('user.login') }}">Player login</a>
+    <a class="btn secondary landing-btn" href="{{ url_for('admin.login') }}">Society admin</a>
+    <a class="btn secondary landing-btn" href="{{ url_for('super_admin.login') }}">Super admin</a>
+  </div>
+{% endblock %}

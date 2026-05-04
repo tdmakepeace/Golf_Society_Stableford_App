@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{% if course %}Edit{% else %}New{% endif %} course{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>{% if course %}Edit course{% else %}New course{% endif %}</h1>
+  <form method="post" class="card form holes-form">
+    <label>Course name
+      <input type="text" name="name" required value="{{ course.name if course else '' }}">
+    </label>
+    <label>Postcode <span class="muted">(shown with name in lists, e.g. “Milford (BN2 1AA)”)</span>
+      <input type="text" name="postcode" maxlength="32" value="{{ course.postcode if course else '' }}" placeholder="e.g. BN2 1AA">
+    </label>
+    <p class="muted">Enter par (3–6) and stroke index (1–18, unique) for each hole. Stroke index <strong>18</strong> is the hardest hole (gets an extra shot before lower numbers); <strong>1</strong> is the easiest.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>Hole</th><th>Par</th><th>Stroke index</th></tr>
+        </thead>
+        <tbody>
+          {% for i in range(1, 19) %}
+            {% set h = holes[i - 1] if holes and holes|length >= i else none %}
+            <tr>
+              <td>{{ i }}</td>
+              <td><input type="number" name="par_{{ i }}" min="3" max="6" value="{{ h.par if h else 4 }}" required></td>
+              <td><input type="number" name="si_{{ i }}" min="1" max="18" value="{{ h.stroke_index if h else i }}" required></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn primary">Save</button>
+  </form>
+{% endblock %}

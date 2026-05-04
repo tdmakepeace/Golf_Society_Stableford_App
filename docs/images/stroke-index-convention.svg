@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" role="img" aria-labelledby="title desc">
+  <title id="title">Stroke index and handicap remainder</title>
+  <desc id="desc">Diagram: SI 18 is hardest; spare shots from handicap remainder go to high SI first.</desc>
+  <rect width="640" height="300" fill="#0f1419"/>
+  <rect x="12" y="12" width="616" height="276" rx="10" fill="#1a2332" stroke="#2d3a4f" stroke-width="1"/>
+  <text x="32" y="48" fill="#3d9cf5" font-family="Segoe UI, system-ui, sans-serif" font-size="18" font-weight="700">Stroke index (SI) in this app</text>
+  <text x="32" y="82" fill="#e8eef5" font-family="Segoe UI, system-ui, sans-serif" font-size="14">" SI <tspan font-weight="700">18</tspan> = hardest hole on the card (first spare shot from the remainder).</text>
+  <text x="32" y="108" fill="#e8eef5" font-family="Segoe UI, system-ui, sans-serif" font-size="14">" SI <tspan font-weight="700">1</tspan> = easiest hole (remainder shots allocated last).</text>
+  <text x="32" y="148" fill="#8b9cb3" font-family="Segoe UI, system-ui, sans-serif" font-size="13">Playing handicap: base = handicap ÷ 18 (full shots on every hole); remainder = handicap mod 18.</text>
+  <text x="32" y="174" fill="#8b9cb3" font-family="Segoe UI, system-ui, sans-serif" font-size="13">Each hole gets base shots, plus one extra on holes where SI e 19  remainder (when remainder &gt; 0).</text>
+  <text x="32" y="214" fill="#fbbf24" font-family="Segoe UI, system-ui, sans-serif" font-size="13">If handicap is a multiple of 18 (e.g. 18, 36), remainder is 0: every hole gets the same strokes; SI does not split a remainder.</text>
+  <text x="32" y="258" fill="#6b7c93" font-family="Segoe UI, system-ui, sans-serif" font-size="12">Enter course SI to match your society scorecard under Admin ’ course edit.</text>
+</svg>

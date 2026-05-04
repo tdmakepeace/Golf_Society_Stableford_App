@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}New society{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>New society</h1>
+  <p class="muted">The first society admin can sign in at <strong>Society admin</strong> and invite more admins, add shared courses, and run competitions.</p>
+  <form method="post" class="card form">
+    <label>Society name
+      <input type="text" name="society_name" required placeholder="e.g. Milford Golf Society">
+    </label>
+    <label>First society admin — email
+      <input type="email" name="admin_email" required autocomplete="off">
+    </label>
+    <label>First society admin — password
+      <input type="password" name="admin_password" required autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn primary">Create</button>
+  </form>
+{% endblock %}

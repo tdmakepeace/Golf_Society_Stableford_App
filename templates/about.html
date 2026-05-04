@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}About · Golf Society Stableford App{% endblock %}
+{% block home_href %}{{ url_for('main.index') }}{% endblock %}
+{% block top_right_links %}
+  <a class="nav-btn" href="{% if request.referrer and request.referrer.startswith(request.url_root) %}{{ request.referrer }}{% else %}{{ url_for('main.index') }}{% endif %}">← Back</a>
+{% endblock %}
+{% block nav %}{% endblock %}
+{% block body %}
+  <h1>About</h1>
+  <section class="card">
+    <h2>Support</h2>
+    <p>For help, questions, or feedback, email <a href="mailto:Tdmakepeace@gmail.com">Tdmakepeace@gmail.com</a>.</p>
+    <p>The app is built to help society admins run competitions and manage their society. It is not a general purpose app and is not intended to be used for other purposes.
+      For access to the app, email Toby Makepeace at <a href="mailto:Tdmakepeace@gmail.com">Tdmakepeace@gmail.com</a>. He will create you an initial admin account.
+      you can load courses and competitions that are only accessible to you, your society users. 
+    </p>
+  </section>
+  <section class="card">
+    <h2>User guide</h2>
+    <ul class="about-guide">
+      <li><strong>Players</strong> sign in with the email the organiser registered for you and the <em>competition password</em> (one shared password per event, not a personal password). Open your competition to enter Stableford scores hole by hole.</li>
+      <li><strong>Society admins</strong> add courses (pars and stroke indexes), create competitions on those courses, set the competition password players use, manage entrants and results, and invite other society admins.</li>
+      <li><strong>Super admins</strong> create societies, lock or unlock them, and manage who can access the super-admin console.</li>
+      <li><strong>Sessions</strong> end automatically after about 10 minutes without any activity; sign in again if you see a timeout message.</li>
+    </ul>
+  </section>
+{% endblock %}

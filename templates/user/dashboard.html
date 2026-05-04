@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}My competitions{% endblock %}
+{% block home_href %}{{ url_for('user.dashboard') }}{% endblock %}
+{% block nav %}
+  <nav class="nav">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <span class="nav-user">{{ current_user.email }}</span>
+    <a class="nav-btn nav-btn--ghost" href="{{ url_for('user.logout') }}">Logout</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <h1>My competitions</h1>
+  {% if entries %}
+    <ul class="card list">
+      {% for item in entries %}
+        <li>
+          <a href="{{ url_for('user.competition_scorecard', comp_id=item.competition.id) }}">
+            <strong>{{ item.competition.name }}</strong>
+          </a>
+          <span class="muted">— {{ item.competition.course.display_label }}</span>
+          <br>
+          <span class="small">Playing HCP {{ item.playing_handicap }} · Stableford so far: <strong>{{ item.total_points }}</strong></span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted card">You are not in any competition yet. Ask your organiser to add you.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Results · {{ competition.name }}{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>{{ competition.name }} — Results</h1>
+  <p class="results-course-head"><strong>Course:</strong> {{ competition.course.display_label }}</p>
+
+  <section class="card">
+    <h2>Leaderboard (Stableford points)</h2>
+    <table class="data">
+      <thead>
+        <tr><th>Pos</th><th>Player</th><th>HCP</th><th>Gross</th><th>Points</th></tr>
+      </thead>
+      <tbody>
+        {% for row in leaderboard %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ row.email }}</td>
+            <td>{{ row.playing_handicap }}</td>
+            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td><strong>{{ row.total_points }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card card--fullscores">
+    <h2>Full scores</h2>
+    <div class="result-fullscore-outer">
+      <table class="data compact result-fullscore-table">
+        <thead>
+          <tr>
+            <th class="result-col-player">Player</th>
+            <th class="result-col-hcp">HCP</th>
+            {% for h in holes %}
+              <th title="Hole {{ h.hole_number }}">{{ h.hole_number }}</th>
+            {% endfor %}
+            <th>Out</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        {% for row in leaderboard %}
+          <tbody class="result-player-tb">
+            <tr class="result-score-row">
+              <td class="result-name-cell">
+                <details class="result-row-details" name="par-hole-detail">
+                  <summary class="result-row-summary" aria-label="Par and points per hole for {{ row.email }}">
+                    <span class="result-expand-chevron" aria-hidden="true">▶</span>
+                    <span class="result-email">{{ row.email }}</span>
+                  </summary>
+                  <div class="result-flyout">
+                    <table class="data compact result-player-detail">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          {% for h in holes %}
+                            <th>{{ h.hole_number }}</th>
+                          {% endfor %}
+                          <th>Out / Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <th scope="row">Par <span class="muted">(yours)</span></th>
+                          {% for h in holes %}
+                            <td>{{ row.user_par_by_hole[h.hole_number] }}</td>
+                          {% endfor %}
+                          <td>{{ row.user_par_total }}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Pts</th>
+                          {% for h in holes %}
+                            <td>{{ row.hole_points.get(h.hole_number, 0) }}</td>
+                          {% endfor %}
+                          <td><strong>{{ row.total_points }}</strong></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </td>
+              <td class="result-hcp">{{ row.playing_handicap }}</td>
+              {% for h in holes %}
+                <td>{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
+              {% endfor %}
+              <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+              <td class="result-pts-cell"><strong>{{ row.total_points }}</strong></td>
+            </tr>
+          </tbody>
+        {% endfor %}
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Course — par and stroke index</h2>
+    <div class="table-scroll">
+      <table class="data compact">
+        <thead>
+          <tr>
+            <th></th>
+            {% for h in holes %}
+              <th>{{ h.hole_number }}</th>
+            {% endfor %}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Par</th>
+            {% for h in holes %}
+              <td>{{ h.par }}</td>
+            {% endfor %}
+            <td><strong>{{ course_par_total }}</strong></td>
+          </tr>
+          <tr>
+            <th scope="row">SI</th>
+            {% for h in holes %}
+              <td>{{ h.stroke_index }}</td>
+            {% endfor %}
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Super admin · {{ society.name }} · Admins{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>{{ society.name }}</h1>
+  {% if society.locked %}
+    <p class="flash flash-error" role="status">This society is <strong>locked</strong>. Society admins cannot sign in or use the admin area until you unlock it.</p>
+  {% endif %}
+  <p class="muted">Society admins sign in at <strong>Society admin</strong>. Set a new password here if someone is locked out.</p>
+  <p>
+    <a class="btn secondary" href="{{ url_for('super_admin.dashboard') }}">← All societies</a>
+    <form method="post" action="{{ url_for('super_admin.society_set_locked', society_id=society.id) }}" class="inline-form">
+      <input type="hidden" name="return_to" value="society_admins">
+      <input type="hidden" name="locked" value="{{ 0 if society.locked else 1 }}">
+      <button type="submit" class="btn {% if society.locked %}primary{% else %}secondary{% endif %}">{% if society.locked %}Unlock society{% else %}Lock society{% endif %}</button>
+    </form>
+  </p>
+
+  {% if admins %}
+    <section class="card">
+      <h2>Admins</h2>
+      <p class="muted">Same rules as when creating an admin: 8+ characters, number, upper, lower, and symbol.</p>
+      <table class="data">
+        <thead>
+          <tr><th>Email</th><th>New password</th></tr>
+        </thead>
+        <tbody>
+          {% for a in admins %}
+            <tr>
+              <td>{{ a.email }}</td>
+              <td>
+                <form method="post" action="{{ url_for('super_admin.society_admin_reset_password', society_id=society.id, admin_id=a.id) }}" class="form inline-grid">
+                  <label>New password
+                    <input type="password" name="new_password" required autocomplete="new-password">
+                  </label>
+                  <label>Confirm
+                    <input type="password" name="new_password_confirm" required autocomplete="new-password">
+                  </label>
+                  <button type="submit" class="btn primary">Reset password</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% else %}
+    <section class="card">
+      <p class="muted">No society admins yet for this society.</p>
+    </section>
+  {% endif %}
+{% endblock %}
