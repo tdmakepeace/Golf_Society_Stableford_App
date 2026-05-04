@@ -15,8 +15,8 @@ PNG files live under [`docs/screenshots/`](docs/screenshots/) (see [`docs/screen
 | Role | URL | Email | Password |
 |------|-----|-------|----------|
 | Super admin | `/super-admin/login` | `superadmin@example.com` | `GolfSuper1!` |
-| Society admin | `/admin/login` | `test@test.com` | `Edcvfr1!` |
-| Player | `/login` | `toby@test.com` | **`Edcvfr1!`** as the **competition password** (same string used for society admin in the capture DB; players always use the organiser’s event password, not a personal password) |
+| Society admin | `/admin/login` | `test@test.com` | `test123!` |
+| Player | `/login` | `toby@test.com` | **`test123!`** as the **competition password** (same string used for society admin in the capture DB; players always use the organiser’s event password, not a personal password) |
 
 | Home | Society admin login |
 |------|---------------------|
