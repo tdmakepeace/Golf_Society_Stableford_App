@@ -8,15 +8,23 @@ Data is stored in **SQLite** at `instance/golfsociety.sqlite` and survives resta
 
 ## Screenshots
 
-Optional PNGs live under [`docs/screenshots/`](docs/screenshots/) (see [`docs/screenshots/README.md`](docs/screenshots/README.md) for filenames). Add captures from your environment if the images below do not load in your clone.
+PNG files live under [`docs/screenshots/`](docs/screenshots/) (see [`docs/screenshots/README.md`](docs/screenshots/README.md) for filenames). Regenerate them with the app running: `pip install -r requirements-dev.txt`, `playwright install chromium`, then `python scripts/capture_readme_screenshots.py` (optional env: `BASE_URL`, `COMPETITION_ID`).
 
-| Home | Admin login |
-|------|-------------|
-| ![Home](docs/screenshots/01-home.png) | ![Admin login](docs/screenshots/02-admin-login.png) |
+**Sample accounts used when capturing the screenshots below** (your database may differ):
 
-| Admin dashboard | Results |
-|-----------------|---------|
-| ![Admin dashboard](docs/screenshots/03-admin-dashboard.png) | ![Results](docs/screenshots/04-results.png) |
+| Role | URL | Email | Password |
+|------|-----|-------|----------|
+| Super admin | `/super-admin/login` | `superadmin@example.com` | `GolfSuper1!` |
+| Society admin | `/admin/login` | `test@test.com` | `Edcvfr1!` |
+| Player | `/login` | `toby@test.com` | **`Edcvfr1!`** as the **competition password** (same string used for society admin in the capture DB; players always use the organiser’s event password, not a personal password) |
+
+| Home | Society admin login |
+|------|---------------------|
+| ![Home](docs/screenshots/01-home.png) | ![Society admin login](docs/screenshots/02-admin-login.png) |
+
+| Society admin dashboard | Results |
+|-------------------------|---------|
+| ![Society admin dashboard](docs/screenshots/03-admin-dashboard.png) | ![Results](docs/screenshots/04-results.png) |
 
 | Player login |
 |--------------|

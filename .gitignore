@@ -33,6 +33,7 @@ htmlcov/
 .hypothesis/
 *.cover
 *.log
+tmp_cookies.txt
 venv/
 .venv/
 env/
