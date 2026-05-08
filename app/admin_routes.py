@@ -343,6 +343,40 @@ def competition_remove_player(comp_id: int, user_id: int):
     return redirect(url_for("admin.competition_detail", comp_id=comp.id))
 
 
+@bp.route("/competitions/<int:comp_id>/players/<int:user_id>/handicap", methods=["POST"])
+@admin_required
+def competition_update_player_handicap(comp_id: int, user_id: int):
+    comp = Competition.query.get_or_404(comp_id)
+    if comp.admin_id != current_user.id:
+        flash("Not your competition.", "error")
+        return redirect(url_for("admin.dashboard"))
+    if comp.locked:
+        flash("This competition is locked. Unlock it to edit player handicaps.", "error")
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+    entry = CompetitionPlayer.query.filter_by(
+        competition_id=comp.id, user_id=user_id
+    ).first()
+    if not entry:
+        flash("That player is not in this competition.", "error")
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+    try:
+        playing_hc = int(request.form.get("playing_handicap", "0"))
+    except (TypeError, ValueError):
+        flash("Playing handicap must be a whole number between 0 and 54.", "error")
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+    if playing_hc < 0 or playing_hc > 54:
+        flash("Playing handicap must be between 0 and 54.", "error")
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+    entry.playing_handicap = playing_hc
+    db.session.commit()
+    flash(f"Updated handicap for {entry.user.email}.", "success")
+    return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+
 @bp.route("/competitions/<int:comp_id>/locked", methods=["POST"])
 @admin_required
 def competition_set_locked(comp_id: int):

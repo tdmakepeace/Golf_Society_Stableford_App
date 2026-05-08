@@ -87,7 +87,7 @@
     {% if players %}
       <table class="data">
         <thead>
-          <tr><th>Email</th><th>Playing HCP</th>{% if not competition.locked %}<th></th>{% endif %}</tr>
+          <tr><th>Email</th><th>Playing HCP</th>{% if not competition.locked %}<th>Actions</th>{% endif %}</tr>
         </thead>
         <tbody>
           {% for p in players %}
@@ -96,6 +96,10 @@
               <td>{{ p.playing_handicap }}</td>
               {% if not competition.locked %}
               <td class="actions">
+                <form method="post" action="{{ url_for('admin.competition_update_player_handicap', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form">
+                  <input type="number" name="playing_handicap" min="0" max="54" value="{{ p.playing_handicap }}" required aria-label="Playing handicap for {{ p.user.email }}">
+                  <button type="submit" class="btn secondary small">Save HCP</button>
+                </form>
                 <form method="post" action="{{ url_for('admin.competition_remove_player', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form" onsubmit="return confirm('Remove {{ p.user.email }} from this competition? Their scores for this event will be deleted.');">
                   <button type="submit" class="btn danger small">Remove</button>
                 </form>
