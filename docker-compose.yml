@@ -1,0 +1,14 @@
+services:
+  golfsociety:
+    build: .
+    container_name: golfsociety-app
+    ports:
+      - "5000:5000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-dev-change-me-in-production}
+      # Optional: customize bootstrap super admin on first DB creation.
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: ${BOOTSTRAP_SUPER_ADMIN_EMAIL:-superadmin@example.com}
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-GolfSuper1!}
+    volumes:
+      - ./instance:/app/instance
+    restart: unless-stopped

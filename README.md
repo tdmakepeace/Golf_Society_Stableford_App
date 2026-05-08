@@ -133,6 +133,53 @@ Open `http://127.0.0.1:5000/` — choose **Player login** or **Admin login**.
 
 ---
 
+## Run with Docker
+
+The repository includes a `Dockerfile` and `docker-compose.yml`.
+
+The app writes SQLite to Flask's instance path (`/app/instance` in the container). Compose maps that to a host folder so data persists:
+
+`./instance` (host) -> `/app/instance` (container)
+
+### Start
+
+```bash
+mkdir instance
+docker compose up --build -d
+```
+
+Open `http://localhost:5000/`.
+
+### Stop
+
+```bash
+docker compose down
+```
+
+Your database stays on the host at `instance/golfsociety.sqlite` and is reused on the next start.
+
+### Optional environment variables
+
+- `SECRET_KEY` (recommended strong value outside local testing)
+- `BOOTSTRAP_SUPER_ADMIN_EMAIL`
+- `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
+
+PowerShell example:
+
+```powershell
+$env:SECRET_KEY="replace-with-strong-secret"
+$env:BOOTSTRAP_SUPER_ADMIN_EMAIL="superadmin@example.com"
+$env:BOOTSTRAP_SUPER_ADMIN_PASSWORD="GolfSuper1!"
+docker compose up --build -d
+```
+# Alternative without compose
+```
+mkdir instance
+docker build -t golfsociety .
+docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instance golfsociety
+```
+---
+
 ## Project layout (high level)
 
 | Path | Purpose |
