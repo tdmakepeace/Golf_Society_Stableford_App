@@ -4,7 +4,19 @@
 {% block nav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block body %}
   <h1>New competition</h1>
+  <p class="muted">Courses are shared across all societies. Filter the list if you have many.</p>
+  <form method="get" action="{{ url_for('admin.competition_new') }}" class="inline-form course-filter card">
+    <label class="sr-only" for="course_q">Filter courses</label>
+    <input type="search" id="course_q" name="course_q" value="{{ course_search or '' }}" placeholder="Filter by name or postcode…" maxlength="64">
+    <button type="submit" class="btn secondary small">Filter</button>
+    {% if course_search %}
+      <a class="btn secondary small" href="{{ url_for('admin.competition_new') }}">Clear</a>
+    {% endif %}
+  </form>
   <form method="post" class="card form">
+    {% if course_search %}
+      <input type="hidden" name="course_q" value="{{ course_search }}">
+    {% endif %}
     <label>Name
       <input type="text" name="name" required>
     </label>
@@ -12,12 +24,18 @@
       <select name="course_id" required>
         {% for c in courses %}
           <option value="{{ c.id }}" {% if selected_id is defined and selected_id == c.id %}selected{% endif %}>{{ c.display_label }}</option>
+        {% else %}
+          <option value="" disabled selected>No courses match — clear filter or add a course</option>
         {% endfor %}
       </select>
     </label>
     <label>Competition password <span class="muted">(min 8 chars — shared by all players)</span>
       <input type="password" name="competition_password" required autocomplete="new-password" minlength="8" placeholder="e.g. event date">
     </label>
-    <button type="submit" class="btn primary">Create</button>
+    {% if courses %}
+      <button type="submit" class="btn primary">Create</button>
+    {% else %}
+      <p class="muted">No courses match your filter. <a href="{{ url_for('admin.competition_new') }}">Clear filter</a> or <a href="{{ url_for('admin.course_new') }}">add a course</a>.</p>
+    {% endif %}
   </form>
 {% endblock %}

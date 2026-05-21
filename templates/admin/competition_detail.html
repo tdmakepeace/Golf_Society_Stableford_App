@@ -16,6 +16,7 @@
 
   <p class="actions-bar">
     <a class="btn secondary" href="{{ url_for('admin.competition_results', comp_id=competition.id) }}">Results</a>
+    <a class="btn secondary" href="{{ url_for('admin.competition_results_pdf', comp_id=competition.id) }}">Results PDF</a>
     <form method="post" action="{{ url_for('admin.competition_set_locked', comp_id=competition.id) }}" class="inline-form">
       {% if competition.locked %}
         <input type="hidden" name="locked" value="0">

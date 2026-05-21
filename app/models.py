@@ -31,7 +31,6 @@ class Society(db.Model):
     locked = db.Column(db.Boolean, nullable=False, default=False)
 
     admins = db.relationship("Admin", back_populates="society", lazy="dynamic")
-    courses = db.relationship("Course", back_populates="society", lazy="dynamic")
 
 
 class Admin(UserMixin, db.Model):
@@ -88,12 +87,11 @@ class User(UserMixin, db.Model):
 
 
 class Course(db.Model):
-    """Shared within a society; dropdown label uses name + postcode."""
+    """Shared across all societies; dropdown label uses name + postcode."""
 
     __tablename__ = "courses"
 
     id = db.Column(db.Integer, primary_key=True)
-    society_id = db.Column(db.Integer, db.ForeignKey("societies.id"), nullable=False)
     # DB column remains admin_id (legacy NOT NULL); Python name is created_by_admin_id.
     created_by_admin_id = db.Column(
         "admin_id", db.Integer, db.ForeignKey("admins.id"), nullable=False
@@ -101,7 +99,6 @@ class Course(db.Model):
     name = db.Column(db.String(200), nullable=False)
     postcode = db.Column(db.String(32), nullable=False, default="")
 
-    society = db.relationship("Society", back_populates="courses")
     creator = db.relationship(
         "Admin", foreign_keys=[created_by_admin_id], back_populates="created_courses"
     )

@@ -68,7 +68,7 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 ### Roles
 
 - **Super admin** (`/super-admin/login`): create societies and the **first** society admin for each; **Admins & passwords** per society; **Lock / unlock** a society (society admins cannot sign in or use `/admin` while locked); **My password** and **Super admins** to change your own password, add additional super admins, or remove others (never the last account, never yourself while signed in).
-- **Society admin** (`/admin/login`): sees **all courses** in that society (any society admin can edit); creates **competitions** and only sees **their own** competitions and results; can add more society admins (**Society admin** in the header nav includes a **Home** link back to the dashboard). If the society is **locked** by a super admin, sign-in and the admin area are blocked until it is unlocked.
+- **Society admin** (`/admin/login`): sees **all shared courses** (any society admin can edit); creates **competitions** and only sees **their own** competitions and results; can download results as **PDF** (leaderboard first, then full per-player detail); can add more society admins (**Society admin** in the header nav includes a **Home** link back to the dashboard). If the society is **locked** by a super admin, sign-in and the admin area are blocked until it is unlocked.
 - **Players** (login at `/login`): enter scores only for competitions they belong to, using the **competition password** (not a personal password).
 
 ### Competition management (society admin)
@@ -107,7 +107,7 @@ Each competition has **one shared password** (stored hashed). Players sign in wi
 
 ### Courses and stroke index (SI)
 
-- **Scope:** Courses belong to the **society**; every society admin can create or edit them. Competitions pick a course from that society.
+- **Scope:** Courses are **shared across all societies**; any society admin can create or edit them. Competitions pick from the global course list (use the filter when there are many).
 - **Holes:** Exactly **18** holes per course. For each hole you set:
   - **Par** — integer from **3** to **6**.
   - **Stroke index** — integer from **1** to **18**, **unique** across the course (the editor enforces uniqueness 1–18).

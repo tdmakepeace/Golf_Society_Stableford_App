@@ -4,6 +4,7 @@
 {% block nav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block body %}
   <h1>{% if course %}Edit course{% else %}New course{% endif %}</h1>
+  <p class="muted">Course details are shared with every society — enter once and all clubs can use this course.</p>
   <form method="post" class="card form holes-form">
     <label>Course name
       <input type="text" name="name" required value="{{ course.name if course else '' }}">

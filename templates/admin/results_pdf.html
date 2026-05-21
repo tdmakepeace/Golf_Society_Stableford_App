@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ competition.name }} — Results</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #111; }
+    h1 { font-size: 14pt; margin: 0 0 4pt; }
+    h2 { font-size: 11pt; margin: 14pt 0 6pt; page-break-after: avoid; }
+    p { margin: 0 0 10pt; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; }
+    th, td { border: 1px solid #666; padding: 3pt 4pt; text-align: center; }
+    th { background: #e8eef5; font-weight: bold; }
+    td.player, th.player { text-align: left; }
+    .section { page-break-inside: avoid; }
+    .player-block { margin-bottom: 12pt; page-break-inside: avoid; }
+    .player-block h3 { font-size: 10pt; margin: 0 0 4pt; text-align: left; }
+    .muted { color: #444; font-size: 8pt; }
+  </style>
+</head>
+<body>
+  <h1>{{ competition.name }} — Results</h1>
+  <p><strong>Course:</strong> {{ competition.course.display_label }}</p>
+
+  <div class="section">
+    <h2>Leaderboard (Stableford points)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th class="player">Player</th>
+          <th>HCP</th>
+          <th>Gross</th>
+          <th>Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in leaderboard %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td class="player">{{ row.email }}</td>
+            <td>{{ row.playing_handicap }}</td>
+            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td><strong>{{ row.total_points }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Full scores (detail)</h2>
+  {% for row in leaderboard %}
+    <div class="player-block">
+      <h3>{{ loop.index }}. {{ row.email }} <span class="muted">(HCP {{ row.playing_handicap }}, {{ row.total_points }} pts)</span></h3>
+      <table>
+        <thead>
+          <tr>
+            <th class="player"></th>
+            {% for h in holes %}
+              <th>{{ h.hole_number }}</th>
+            {% endfor %}
+            <th>Out</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th class="player" scope="row">Gross</th>
+            {% for h in holes %}
+              <td>{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
+            {% endfor %}
+            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+          </tr>
+          <tr>
+            <th class="player" scope="row">Par (yours)</th>
+            {% for h in holes %}
+              <td>{{ row.user_par_by_hole[h.hole_number] }}</td>
+            {% endfor %}
+            <td>{{ row.user_par_total }}</td>
+          </tr>
+          <tr>
+            <th class="player" scope="row">Pts</th>
+            {% for h in holes %}
+              <td>{{ row.hole_points.get(h.hole_number, 0) }}</td>
+            {% endfor %}
+            <td><strong>{{ row.total_points }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+
+  <div class="section">
+    <h2>Course — par and stroke index</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="player"></th>
+          {% for h in holes %}
+            <th>{{ h.hole_number }}</th>
+          {% endfor %}
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th class="player" scope="row">Par</th>
+          {% for h in holes %}
+            <td>{{ h.par }}</td>
+          {% endfor %}
+          <td><strong>{{ course_par_total }}</strong></td>
+        </tr>
+        <tr>
+          <th class="player" scope="row">SI</th>
+          {% for h in holes %}
+            <td>{{ h.stroke_index }}</td>
+          {% endfor %}
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

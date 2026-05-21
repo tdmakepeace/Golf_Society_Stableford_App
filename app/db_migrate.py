@@ -20,6 +20,35 @@ def _cols(table: str) -> set[str]:
         return set()
 
 
+def _migrate_courses_global(conn, insp) -> None:
+    """Drop society_id so courses are shared app-wide (rebuild table on SQLite)."""
+    if not insp.has_table("courses"):
+        return
+    cols = _cols("courses")
+    if "society_id" not in cols:
+        return
+
+    conn.execute(
+        text(
+            "CREATE TABLE courses_global ("
+            "id INTEGER NOT NULL PRIMARY KEY, "
+            "admin_id INTEGER NOT NULL REFERENCES admins(id), "
+            "name VARCHAR(200) NOT NULL, "
+            "postcode VARCHAR(32) NOT NULL DEFAULT '')"
+        )
+    )
+    admin_col = "admin_id" if "admin_id" in cols else "created_by_admin_id"
+    conn.execute(
+        text(
+            f"INSERT INTO courses_global (id, admin_id, name, postcode) "
+            f"SELECT id, {admin_col}, name, "
+            f"COALESCE(postcode, '') FROM courses"
+        )
+    )
+    conn.execute(text("DROP TABLE courses"))
+    conn.execute(text("ALTER TABLE courses_global RENAME TO courses"))
+
+
 def run_sqlite_legacy_migrations() -> None:
     if not db.engine.url.drivername.startswith("sqlite"):
         return
@@ -114,6 +143,8 @@ def run_sqlite_legacy_migrations() -> None:
                     "WHERE created_by_admin_id IS NULL"
                 )
             )
+
+        _migrate_courses_global(conn, insp)
 
         if insp.has_table("competitions"):
             cols_comp = _cols("competitions")

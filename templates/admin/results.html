@@ -5,6 +5,10 @@
 {% block body %}
   <h1>{{ competition.name }} — Results</h1>
   <p class="results-course-head"><strong>Course:</strong> {{ competition.course.display_label }}</p>
+  <p class="actions-bar">
+    <a class="btn secondary" href="{{ url_for('admin.competition_detail', comp_id=competition.id) }}">Back to competition</a>
+    <a class="btn primary" href="{{ url_for('admin.competition_results_pdf', comp_id=competition.id) }}">Download PDF</a>
+  </p>
 
   <section class="card">
     <h2>Leaderboard (Stableford points)</h2>

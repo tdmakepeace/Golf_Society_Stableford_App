@@ -27,9 +27,17 @@
   </section>
   <section class="card">
     <div class="card-heading-row">
-      <h2>Courses (society)</h2>
+      <h2>Shared courses</h2>
       <a class="btn primary small" href="{{ url_for('admin.course_new') }}">New course</a>
     </div>
+    <form method="get" action="{{ url_for('admin.dashboard') }}" class="inline-form course-filter">
+      <label class="sr-only" for="course_q">Filter courses</label>
+      <input type="search" id="course_q" name="course_q" value="{{ course_search }}" placeholder="Filter by name or postcode…" maxlength="64">
+      <button type="submit" class="btn secondary small">Filter</button>
+      {% if course_search %}
+        <a class="btn secondary small" href="{{ url_for('admin.dashboard') }}">Clear</a>
+      {% endif %}
+    </form>
     {% if courses %}
       <ul class="list">
         {% for c in courses %}
@@ -51,8 +59,10 @@
           </li>
         {% endfor %}
       </ul>
+    {% elif course_search %}
+      <p class="muted">No courses match “{{ course_search }}”. <a href="{{ url_for('admin.dashboard') }}">Clear filter</a> or <a href="{{ url_for('admin.course_new') }}">add a new course</a>.</p>
     {% else %}
-      <p class="muted">No courses yet.</p>
+      <p class="muted">No courses yet. Add one — it will be available to every society.</p>
     {% endif %}
   </section>
 {% endblock %}

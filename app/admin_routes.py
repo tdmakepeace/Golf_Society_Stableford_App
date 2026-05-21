@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import secrets
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
+from sqlalchemy import or_
 from flask_login import current_user, login_user, logout_user
 
 from . import db
@@ -19,11 +20,13 @@ from .validators import (
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-def _society_courses_query():
-    return (
-        Course.query.filter_by(society_id=current_user.society_id)
-        .order_by(Course.name, Course.postcode)
-    )
+def _courses_query(search: str = ""):
+    q = Course.query.order_by(Course.name, Course.postcode)
+    term = (search or "").strip()
+    if term:
+        like = f"%{term}%"
+        q = q.filter(or_(Course.name.ilike(like), Course.postcode.ilike(like)))
+    return q
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -72,7 +75,8 @@ def logout():
 @bp.route("/")
 @admin_required
 def dashboard():
-    courses = _society_courses_query().all()
+    course_search = (request.args.get("course_q") or "").strip()
+    courses = _courses_query(course_search).all()
     comps = (
         Competition.query.filter_by(admin_id=current_user.id)
         .order_by(Competition.name)
@@ -82,6 +86,7 @@ def dashboard():
         "admin/dashboard.html",
         society=current_user.society,
         courses=courses,
+        course_search=course_search,
         competitions=comps,
     )
 
@@ -121,7 +126,6 @@ def course_new():
         c = Course(
             name=name,
             postcode=postcode,
-            society_id=current_user.society_id,
             created_by_admin_id=current_user.id,
         )
         db.session.add(c)
@@ -146,9 +150,6 @@ def course_new():
 @admin_required
 def course_edit(course_id: int):
     c = Course.query.get_or_404(course_id)
-    if c.society_id != current_user.society_id:
-        flash("That course is not in your society.", "error")
-        return redirect(url_for("admin.dashboard"))
 
     holes = Hole.query.filter_by(course_id=c.id).order_by(Hole.hole_number).all()
 
@@ -196,9 +197,10 @@ def course_edit(course_id: int):
 @bp.route("/competitions/new", methods=["GET", "POST"])
 @admin_required
 def competition_new():
-    courses = _society_courses_query().all()
-    if not courses:
-        flash("Create a society course first.", "error")
+    course_search = (request.args.get("course_q") or request.form.get("course_q") or "").strip()
+    courses = _courses_query(course_search).all()
+    if not Course.query.first():
+        flash("Add a course first (shared with all societies).", "error")
         return redirect(url_for("admin.course_new"))
 
     if request.method == "POST":
@@ -207,9 +209,7 @@ def competition_new():
             course_id = int(request.form.get("course_id", "0"))
         except (TypeError, ValueError):
             course_id = 0
-        course = Course.query.filter_by(
-            id=course_id, society_id=current_user.society_id
-        ).first()
+        course = db.session.get(Course, course_id)
         comp_pw = request.form.get("competition_password", "")
         try:
             validate_competition_password(comp_pw)
@@ -218,6 +218,7 @@ def competition_new():
             return render_template(
                 "admin/competition_new.html",
                 courses=courses,
+                course_search=course_search,
                 selected_id=course_id if course_id else None,
             )
 
@@ -226,6 +227,7 @@ def competition_new():
             return render_template(
                 "admin/competition_new.html",
                 courses=courses,
+                course_search=course_search,
                 selected_id=course_id if course_id else None,
             )
 
@@ -238,7 +240,11 @@ def competition_new():
         flash("Competition created.", "success")
         return redirect(url_for("admin.competition_detail", comp_id=comp.id))
 
-    return render_template("admin/competition_new.html", courses=courses)
+    return render_template(
+        "admin/competition_new.html",
+        courses=courses,
+        course_search=course_search,
+    )
 
 
 @bp.route("/competitions/<int:comp_id>")
@@ -421,6 +427,38 @@ def competition_results(comp_id: int):
     )
 
 
+@bp.route("/competitions/<int:comp_id>/results.pdf")
+@admin_required
+def competition_results_pdf(comp_id: int):
+    comp = Competition.query.get_or_404(comp_id)
+    if comp.admin_id != current_user.id:
+        flash("Not your competition.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    board = competition_leaderboard(comp)
+    holes = (
+        Hole.query.filter_by(course_id=comp.course_id)
+        .order_by(Hole.hole_number)
+        .all()
+    )
+    course_par_total = sum(h.par for h in holes)
+    html = render_template(
+        "admin/results_pdf.html",
+        competition=comp,
+        leaderboard=board,
+        holes=holes,
+        course_par_total=course_par_total,
+    )
+    from .pdf_export import html_to_pdf_bytes
+
+    pdf = html_to_pdf_bytes(html)
+    filename = f"{comp.name.replace(' ', '_')}_results.pdf"
+    resp = make_response(pdf)
+    resp.headers["Content-Type"] = "application/pdf"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
 @bp.route("/account", methods=["GET", "POST"])
 @admin_required
 def account():
@@ -556,9 +594,6 @@ def admin_delete(admin_id: int):
 @admin_required
 def course_delete(course_id: int):
     c = Course.query.get_or_404(course_id)
-    if c.society_id != current_user.society_id:
-        flash("That course is not in your society.", "error")
-        return redirect(url_for("admin.dashboard"))
 
     if c.competitions.count() > 0:
         flash("Cannot delete a course that is used by a competition.", "error")
