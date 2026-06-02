@@ -7,11 +7,7 @@
   <p class="muted">Course: <strong>{{ competition.course.display_label }}</strong></p>
 
   {% if competition.locked %}
-    <p class="flash flash-info"><strong>Locked.</strong> Players cannot edit scores. Player list, import, password, and removals are disabled until you unlock.</p>
-  {% endif %}
-
-  {% if not competition.password_hash %}
-    <p class="flash flash-error">Set a <strong>competition password</strong> below so players can sign in (same password for everyone in this event).</p>
+    <p class="flash flash-info"><strong>Locked.</strong> Players cannot edit scores. Player list, import, handicap edits, and removals are disabled until you unlock.</p>
   {% endif %}
 
   <p class="actions-bar">
@@ -32,26 +28,11 @@
   </p>
 
   <section class="card">
-    <h2>Competition password</h2>
-    {% if competition.locked %}
-      <p class="muted">Unlock the competition to change the password.</p>
-    {% else %}
-      <p class="muted">Players use this password together with their email. Enter a new value anytime to replace the old one (min 8 characters — e.g. event date).</p>
-      <form method="post" action="{{ url_for('admin.competition_set_password', comp_id=competition.id) }}" class="form">
-        <label>New competition password
-          <input type="password" name="competition_password" required autocomplete="new-password" minlength="8" placeholder="e.g. 20260503 or SpringOuting26">
-        </label>
-        <button type="submit" class="btn primary">Save password</button>
-      </form>
-    {% endif %}
-  </section>
-
-  <section class="card">
     <h2>Import players (CSV)</h2>
     {% if competition.locked %}
       <p class="muted">Unlock the competition to import players.</p>
     {% else %}
-      <p class="muted">Columns: <code>email</code> and <code>handicap</code> (aliases: <code>e_mail</code>, <code>playing_handicap</code>, <code>hcp</code>). Header row required. No passwords in the file — players use the <strong>competition password</strong> above.</p>
+      <p class="muted">Columns: <code>email</code> and <code>handicap</code> (aliases: <code>e_mail</code>, <code>playing_handicap</code>, <code>hcp</code>). Header row required. Players must already exist in <strong>Society players</strong>.</p>
       <form method="post" action="{{ url_for('admin.competition_import_players', comp_id=competition.id) }}" enctype="multipart/form-data" class="form">
         <label>CSV file
           <input type="file" name="csv_file" accept=".csv,text/csv" required>
@@ -62,21 +43,29 @@
   </section>
 
   <section class="card">
-    <h2>Add or update one player</h2>
+    <h2>Add one player</h2>
     {% if competition.locked %}
       <p class="muted">Unlock the competition to add or update players.</p>
     {% else %}
-      <p class="muted">Email and handicap only. New players get an account automatically; they sign in with this competition’s password.</p>
-      <p class="muted small">Playing handicap that is a multiple of 18 (18, 36, 54) gives <strong>one full set per hole</strong> — every hole shows the same HCP shots and stroke index only matters for scores above that. Use 17, 20, etc. to see spare shots follow stroke index (18 = hardest first).</p>
-      <form method="post" action="{{ url_for('admin.competition_add_player', comp_id=competition.id) }}" class="form inline-grid">
-        <label>Email
-          <input type="email" name="email" required>
-        </label>
-        <label>Playing handicap (0–54)
-          <input type="number" name="playing_handicap" min="0" max="54" value="17" required>
-        </label>
-        <button type="submit" class="btn primary">Save player</button>
-      </form>
+      {% if available_users %}
+        <p class="muted">Select a society player not already in this competition. If handicap is left blank, it copies from their previous event in this society.</p>
+        <p class="muted small">Playing handicap that is a multiple of 18 (18, 36, 54) gives <strong>one full set per hole</strong> — every hole shows the same HCP shots and stroke index only matters for scores above that. Use 17, 20, etc. to see spare shots follow stroke index (18 = hardest first).</p>
+        <form method="post" action="{{ url_for('admin.competition_add_player', comp_id=competition.id) }}" class="form inline-grid">
+          <label>Email
+            <select name="email" required>
+              {% for u in available_users %}
+                <option value="{{ u.email }}">{{ u.email }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Playing handicap (0–54)
+            <input type="number" name="playing_handicap" min="0" max="54" value="" placeholder="Auto-copy from last event">
+          </label>
+          <button type="submit" class="btn primary">Add player</button>
+        </form>
+      {% else %}
+        <p class="muted">All society players are already in this competition.</p>
+      {% endif %}
     {% endif %}
   </section>
 

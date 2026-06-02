@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Society players{% endblock %}
+{% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Society players</h1>
+  <p class="muted">Players are created once at society level, then added to competitions with event-specific handicap.</p>
+
+  <section class="card">
+    <h2>Shared player password</h2>
+    <p class="muted">Used for first login across this society. Players can then set their own password in player account.</p>
+    <form method="post" action="{{ url_for('admin.society_set_player_password') }}" class="form">
+      <label>New shared player password
+        <input type="password" name="society_player_password" required minlength="8" autocomplete="new-password" placeholder="e.g. SummerSeries26">
+      </label>
+      <button type="submit" class="btn primary">Save shared password</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Add player</h2>
+    <form method="post" action="{{ url_for('admin.society_user_new') }}" class="form inline-grid">
+      <label>Email
+        <input type="email" name="email" required autocomplete="off">
+      </label>
+      <label>Initial personal password
+        <input type="password" name="password" required autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn primary">Create player</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Players</h2>
+    {% if users %}
+      <ul class="list">
+        {% for u in users %}
+          <li class="list-row">
+            <span>{{ u.email }}</span>
+            <span class="list-actions">
+              <form method="post" action="{{ url_for('admin.society_user_mark_deleted', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Mark {{ u.email }} as deleted? They will be hidden from this page and from new competition player lists.');">
+                <button type="submit" class="btn danger small">Mark deleted</button>
+              </form>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No players yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Archived players</h2>
+    {% if archived_users %}
+      <ul class="list">
+        {% for u in archived_users %}
+          <li class="list-row">
+            <span>{{ u.email }}</span>
+            <span class="list-actions">
+              <form method="post" action="{{ url_for('admin.society_user_restore', user_id=u.id) }}" class="inline-form">
+                <button type="submit" class="btn secondary small">Restore</button>
+              </form>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No archived players.</p>
+    {% endif %}
+  </section>
+{% endblock %}

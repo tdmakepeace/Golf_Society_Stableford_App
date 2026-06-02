@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import wraps
 
-from flask import flash, redirect, request, session, url_for
+from flask import flash, redirect, request, url_for
 from flask_login import current_user, logout_user
 
 from . import db
@@ -42,9 +42,6 @@ def user_required(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
         if not current_user.is_authenticated or not isinstance(current_user, User):
-            return redirect(url_for("user.login", next=request.url))
-        if not session.get("player_competition_ids"):
-            logout_user()
             return redirect(url_for("user.login", next=request.url))
         return f(*args, **kwargs)
 

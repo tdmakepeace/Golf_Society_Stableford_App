@@ -169,3 +169,55 @@ def run_sqlite_legacy_migrations() -> None:
                         "ALTER TABLE societies ADD COLUMN locked INTEGER NOT NULL DEFAULT 0"
                     )
                 )
+            if "player_password_hash" not in cols_soc:
+                conn.execute(
+                    text(
+                        "ALTER TABLE societies ADD COLUMN player_password_hash VARCHAR(256)"
+                    )
+                )
+            conn.execute(
+                text(
+                    "UPDATE societies SET player_password_hash = ("
+                    "SELECT competitions.password_hash FROM competitions "
+                    "JOIN admins ON admins.id = competitions.admin_id "
+                    "WHERE admins.society_id = societies.id "
+                    "AND competitions.password_hash IS NOT NULL "
+                    "ORDER BY competitions.id DESC LIMIT 1"
+                    ") WHERE player_password_hash IS NULL"
+                )
+            )
+
+        if insp.has_table("users"):
+            cols_users = _cols("users")
+            if "society_id" not in cols_users:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users ADD COLUMN society_id INTEGER REFERENCES societies(id)"
+                    )
+                )
+            if "is_deleted" not in cols_users:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+                    )
+                )
+
+            cols_users2 = _cols("users")
+            if "society_id" in cols_users2:
+                conn.execute(
+                    text(
+                        "UPDATE users SET society_id = ("
+                        "SELECT admins.society_id FROM competition_players cp "
+                        "JOIN competitions ON competitions.id = cp.competition_id "
+                        "JOIN admins ON admins.id = competitions.admin_id "
+                        "WHERE cp.user_id = users.id "
+                        "ORDER BY cp.competition_id DESC LIMIT 1"
+                        ") WHERE society_id IS NULL"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "UPDATE users SET society_id = (SELECT id FROM societies ORDER BY id ASC LIMIT 1) "
+                        "WHERE society_id IS NULL"
+                    )
+                )

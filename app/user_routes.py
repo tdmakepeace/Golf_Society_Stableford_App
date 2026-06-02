@@ -1,35 +1,31 @@
 from __future__ import annotations
 
-import secrets
-
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 
 from . import db
 from .decorators import user_required
 from .models import Competition, CompetitionPlayer, Hole, Score, User
 from .scoring_helpers import player_result
-from .validators import validate_email_address
+from .validators import validate_email_address, validate_password
 
 PLAYER_COMPETITION_IDS = "player_competition_ids"
 
 bp = Blueprint("user", __name__)
 
 
-def _competition_ids_matching_password(user: User, password: str) -> list[int]:
-    ids: list[int] = []
-    for entry in CompetitionPlayer.query.filter_by(user_id=user.id).all():
-        if entry.competition.check_password(password):
-            ids.append(entry.competition_id)
-    return ids
+def _can_authenticate_user(user: User, password: str) -> bool:
+    if user.check_password(password):
+        return True
+    if user.society and user.society.check_player_password(password):
+        return True
+    return False
 
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated and isinstance(current_user, User):
-        if session.get(PLAYER_COMPETITION_IDS):
-            return redirect(url_for("user.dashboard"))
-        logout_user()
+        return redirect(url_for("user.dashboard"))
 
     if request.method == "POST":
         email_raw = request.form.get("email", "")
@@ -45,17 +41,14 @@ def login():
             flash("Invalid email or password.", "error")
             return render_template("user/login.html")
 
-        matched = _competition_ids_matching_password(user, password)
-        if not matched:
+        if not _can_authenticate_user(user, password):
             flash(
-                "Wrong password, or you are not entered in any competition that uses it. "
-                "Use the competition password from your organiser (not a personal password).",
+                "Invalid email or password.",
                 "error",
             )
             return render_template("user/login.html")
 
         login_user(user)
-        session[PLAYER_COMPETITION_IDS] = matched
         next_url = request.args.get("next")
         if next_url:
             return redirect(next_url)
@@ -66,7 +59,6 @@ def login():
 
 @bp.route("/logout")
 def logout():
-    session.pop(PLAYER_COMPETITION_IDS, None)
     if current_user.is_authenticated and isinstance(current_user, User):
         logout_user()
     return redirect(url_for("user.login"))
@@ -75,10 +67,8 @@ def logout():
 @bp.route("/player")
 @user_required
 def dashboard():
-    allowed = set(session.get(PLAYER_COMPETITION_IDS, []))
     entries = (
         CompetitionPlayer.query.filter_by(user_id=current_user.id)
-        .filter(CompetitionPlayer.competition_id.in_(allowed))
         .join(Competition)
         .order_by(Competition.name)
         .all()
@@ -99,11 +89,6 @@ def dashboard():
 @bp.route("/player/competition/<int:comp_id>", methods=["GET", "POST"])
 @user_required
 def competition_scorecard(comp_id: int):
-    allowed = session.get(PLAYER_COMPETITION_IDS, [])
-    if comp_id not in allowed:
-        flash("You can only open competitions you signed in to with that competition’s password.", "error")
-        return redirect(url_for("user.dashboard"))
-
     comp = Competition.query.get_or_404(comp_id)
     entry = CompetitionPlayer.query.filter_by(
         competition_id=comp.id, user_id=current_user.id
@@ -176,3 +161,30 @@ def competition_scorecard(comp_id: int):
         gross_total=pr["gross_total"],
         target_gross_total=pr["target_gross_total"],
     )
+
+
+@bp.route("/player/account", methods=["GET", "POST"])
+@user_required
+def account():
+    if request.method == "POST":
+        current_pw = request.form.get("current_password", "")
+        new_pw = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+        if not _can_authenticate_user(current_user, current_pw):
+            flash("Current password is incorrect.", "error")
+            return render_template("user/account.html")
+        if new_pw != confirm:
+            flash("New passwords do not match.", "error")
+            return render_template("user/account.html")
+        try:
+            validate_password(new_pw)
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template("user/account.html")
+
+        current_user.set_password(new_pw)
+        db.session.commit()
+        flash("Your password has been updated.", "success")
+        return redirect(url_for("user.account"))
+
+    return render_template("user/account.html")

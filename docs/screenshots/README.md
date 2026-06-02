@@ -19,8 +19,8 @@ Optional: `BASE_URL`, `COMPETITION_ID` (defaults `1`).
 | Role | Email | Password |
 |------|-------|----------|
 | Super admin | `superadmin@example.com` | `GolfSuper1!` |
-| Society admin | `test@test.com` | `Edcvfr1!` |
-| Player | `toby@test.com` | Competition password `Edcvfr1!` (set on the demo competition for capture) |
+| Society admin | `test@test.com` | `Test123!` |
+| Player | `toby@test.com` | Competition password `Test123!` (set on the demo competition for capture) |
 
 | Filename | Suggested capture |
 |----------|-------------------|

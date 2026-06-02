@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import secrets
-
 from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from sqlalchemy import or_
 from flask_login import current_user, login_user, logout_user
@@ -12,8 +10,8 @@ from .decorators import admin_required
 from .models import Admin, Competition, CompetitionPlayer, Course, Hole, Score, Society, User
 from .scoring_helpers import competition_leaderboard
 from .validators import (
-    validate_competition_password,
     validate_email_address,
+    validate_competition_password,
     validate_password,
 )
 
@@ -27,6 +25,24 @@ def _courses_query(search: str = ""):
         like = f"%{term}%"
         q = q.filter(or_(Course.name.ilike(like), Course.postcode.ilike(like)))
     return q
+
+
+def _latest_previous_handicap_for_user(comp: Competition, user_id: int) -> int:
+    prior = (
+        CompetitionPlayer.query.join(Competition)
+        .join(Admin, Competition.admin_id == Admin.id)
+        .filter(
+            CompetitionPlayer.user_id == user_id,
+            Competition.id != comp.id,
+            Competition.id < comp.id,
+            Admin.society_id == current_user.society_id,
+        )
+        .order_by(Competition.id.desc())
+        .first()
+    )
+    if prior:
+        return prior.playing_handicap
+    return 0
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -210,18 +226,6 @@ def competition_new():
         except (TypeError, ValueError):
             course_id = 0
         course = db.session.get(Course, course_id)
-        comp_pw = request.form.get("competition_password", "")
-        try:
-            validate_competition_password(comp_pw)
-        except ValueError as e:
-            flash(str(e), "error")
-            return render_template(
-                "admin/competition_new.html",
-                courses=courses,
-                course_search=course_search,
-                selected_id=course_id if course_id else None,
-            )
-
         if not name or not course:
             flash("Competition name and course are required.", "error")
             return render_template(
@@ -234,7 +238,6 @@ def competition_new():
         comp = Competition(
             name=name, course_id=course.id, admin_id=current_user.id
         )
-        comp.set_password(comp_pw)
         db.session.add(comp)
         db.session.commit()
         flash("Competition created.", "success")
@@ -261,10 +264,18 @@ def competition_detail(comp_id: int):
         .order_by(User.email)
         .all()
     )
+    entered_user_ids = [p.user_id for p in players]
+    available_users_q = User.query.filter_by(
+        society_id=current_user.society_id, is_deleted=False
+    )
+    if entered_user_ids:
+        available_users_q = available_users_q.filter(~User.id.in_(entered_user_ids))
+    available_users = available_users_q.order_by(User.email).all()
     return render_template(
         "admin/competition_detail.html",
         competition=comp,
         players=players,
+        available_users=available_users,
     )
 
 
@@ -295,12 +306,15 @@ def competition_add_player(comp_id: int):
         flash("Playing handicap must be between 0 and 54.", "error")
         return redirect(url_for("admin.competition_detail", comp_id=comp.id))
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(
+        email=email, society_id=current_user.society_id, is_deleted=False
+    ).first()
     if user is None:
-        user = User(email=email)
-        user.set_password(secrets.token_urlsafe(32))
-        db.session.add(user)
-        db.session.flush()
+        flash(
+            "That player is not in this society yet. Add them under Society players first.",
+            "error",
+        )
+        return redirect(url_for("admin.society_users"))
 
     existing = CompetitionPlayer.query.filter_by(
         competition_id=comp.id, user_id=user.id
@@ -309,6 +323,8 @@ def competition_add_player(comp_id: int):
         existing.playing_handicap = playing_hc
         flash("Player updated (handicap).", "success")
     else:
+        if request.form.get("playing_handicap", "").strip() == "":
+            playing_hc = _latest_previous_handicap_for_user(comp, user.id)
         db.session.add(
             CompetitionPlayer(
                 competition_id=comp.id,
@@ -619,28 +635,23 @@ def competition_delete(comp_id: int):
     return redirect(url_for("admin.dashboard"))
 
 
-@bp.route("/competitions/<int:comp_id>/password", methods=["POST"])
+@bp.route("/users/player-password", methods=["POST"])
 @admin_required
-def competition_set_password(comp_id: int):
-    comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
-        return redirect(url_for("admin.dashboard"))
-    if comp.locked:
-        flash("This competition is locked. Unlock it to change the password.", "error")
-        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
-
-    pw = request.form.get("competition_password", "")
+def society_set_player_password():
+    pw = request.form.get("society_player_password", "")
     try:
         validate_competition_password(pw)
     except ValueError as e:
         flash(str(e), "error")
-        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+        return redirect(url_for("admin.society_users"))
 
-    comp.set_password(pw)
+    current_user.society.set_player_password(pw)
     db.session.commit()
-    flash("Competition password saved. Players use this (with their email) to sign in.", "success")
-    return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+    flash(
+        "Society player password updated. Players can sign in with this shared password.",
+        "success",
+    )
+    return redirect(url_for("admin.society_users"))
 
 
 @bp.route("/competitions/<int:comp_id>/import-players", methods=["POST"])
@@ -688,12 +699,12 @@ def competition_import_players(comp_id: int):
             skipped.append(f"{email}: handicap must be 0–54")
             continue
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(
+            email=email, society_id=current_user.society_id, is_deleted=False
+        ).first()
         if user is None:
-            user = User(email=email)
-            user.set_password(secrets.token_urlsafe(32))
-            db.session.add(user)
-            db.session.flush()
+            skipped.append(f"{email}: not an active society player")
+            continue
 
         existing = CompetitionPlayer.query.filter_by(
             competition_id=comp.id, user_id=user.id
@@ -714,7 +725,7 @@ def competition_import_players(comp_id: int):
     db.session.commit()
     msg = (
         f"Import finished: {added} added to this competition, {updated} handicap updates. "
-        f"Players sign in with their email and this competition’s password."
+        f"Players sign in with their email and society/player password."
     )
     if skipped:
         msg += f" Skipped {len(skipped)} row(s): " + "; ".join(skipped[:8])
@@ -722,3 +733,83 @@ def competition_import_players(comp_id: int):
             msg += "…"
     flash(msg, "success")
     return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+
+@bp.route("/users")
+@admin_required
+def society_users():
+    users = (
+        User.query.filter_by(society_id=current_user.society_id, is_deleted=False)
+        .order_by(User.email)
+        .all()
+    )
+    archived_users = (
+        User.query.filter_by(society_id=current_user.society_id, is_deleted=True)
+        .order_by(User.email)
+        .all()
+    )
+    return render_template(
+        "admin/users.html",
+        users=users,
+        archived_users=archived_users,
+        society=current_user.society,
+    )
+
+
+@bp.route("/users/new", methods=["POST"])
+@admin_required
+def society_user_new():
+    email_raw = request.form.get("email", "")
+    password = request.form.get("password", "")
+    try:
+        email = validate_email_address(email_raw)
+        validate_password(password)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.society_users"))
+
+    existing_any = User.query.filter_by(email=email).first()
+    if existing_any:
+        flash("That email is already in use.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    user = User(email=email, society_id=current_user.society_id)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    flash("Society player created.", "success")
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/<int:user_id>/mark-deleted", methods=["POST"])
+@admin_required
+def society_user_mark_deleted(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.society_id != current_user.society_id:
+        flash("That player is not in your society.", "error")
+        return redirect(url_for("admin.society_users"))
+    if user.is_deleted:
+        flash("That player is already marked deleted.", "info")
+        return redirect(url_for("admin.society_users"))
+
+    user.is_deleted = True
+    db.session.commit()
+    flash(f"{user.email} marked deleted.", "success")
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/<int:user_id>/restore", methods=["POST"])
+@admin_required
+def society_user_restore(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.society_id != current_user.society_id:
+        flash("That player is not in your society.", "error")
+        return redirect(url_for("admin.society_users"))
+    if not user.is_deleted:
+        flash("That player is already active.", "info")
+        return redirect(url_for("admin.society_users"))
+
+    user.is_deleted = False
+    db.session.commit()
+    flash(f"{user.email} restored.", "success")
+    return redirect(url_for("admin.society_users"))

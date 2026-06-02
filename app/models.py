@@ -28,9 +28,19 @@ class Society(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
+    player_password_hash = db.Column(db.String(256), nullable=True)
     locked = db.Column(db.Boolean, nullable=False, default=False)
 
     admins = db.relationship("Admin", back_populates="society", lazy="dynamic")
+    users = db.relationship("User", back_populates="society", lazy="dynamic")
+
+    def set_player_password(self, password: str) -> None:
+        self.player_password_hash = generate_password_hash(password)
+
+    def check_player_password(self, password: str) -> bool:
+        if not self.player_password_hash:
+            return False
+        return check_password_hash(self.player_password_hash, password)
 
 
 class Admin(UserMixin, db.Model):
@@ -70,10 +80,13 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
+    society_id = db.Column(db.Integer, db.ForeignKey("societies.id"), nullable=False)
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     def get_id(self) -> str:
         return f"u:{self.id}"
 
+    society = db.relationship("Society", back_populates="users")
     competition_entries = db.relationship(
         "CompetitionPlayer", back_populates="user", lazy="dynamic"
     )

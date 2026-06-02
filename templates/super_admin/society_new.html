@@ -15,6 +15,9 @@
     <label>First society admin — password
       <input type="password" name="admin_password" required autocomplete="new-password">
     </label>
+    <label>Shared player password <span class="muted">(min 8 chars)</span>
+      <input type="password" name="player_password" required minlength="8" autocomplete="new-password" placeholder="Used by all players in this society">
+    </label>
     <button type="submit" class="btn primary">Create</button>
   </form>
 {% endblock %}

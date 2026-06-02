@@ -1,6 +1,10 @@
 # Golf Society Stableford App
 
-A small **Flask** app for running a **Stableford** golf competition: **super admins** create societies and the first **society admin**; society admins add **shared courses** (18 holes: par + stroke index) and their own **competitions**; **players** enter scores using the **competition password**.
+A small **Flask** app for running Stableford golf competitions with a three-tier model:
+
+- **Super admins** create societies.
+- **Society admins** manage courses, competitions, and society players.
+- **Players** enter scores for competitions they are entered in.
 
 Data is stored in **SQLite** at `instance/golfsociety.sqlite` and survives restarts.
 
@@ -10,13 +14,13 @@ Data is stored in **SQLite** at `instance/golfsociety.sqlite` and survives resta
 
 PNG files live under [`docs/screenshots/`](docs/screenshots/) (see [`docs/screenshots/README.md`](docs/screenshots/README.md) for filenames). Regenerate them with the app running: `pip install -r requirements-dev.txt`, `playwright install chromium`, then `python scripts/capture_readme_screenshots.py` (optional env: `BASE_URL`, `COMPETITION_ID`).
 
-**Sample accounts used when capturing the screenshots below** (your database may differ):
+**Sample accounts used when capturing screenshots** (your data may differ):
 
 | Role | URL | Email | Password |
 |------|-----|-------|----------|
 | Super admin | `/super-admin/login` | `superadmin@example.com` | `GolfSuper1!` |
-| Society admin | `/admin/login` | `test@test.com` | `test123!` |
-| Player | `/login` | `toby@test.com` | **`test123!`** as the **competition password** (same string used for society admin in the capture DB; players always use the organiser’s event password, not a personal password) |
+| Society admin | `/admin/login` | `test@test.com` | `Test123!` |
+| Player | `/login` | `toby@test.com` | Society shared player password or personal password |
 
 | Home | Society admin login |
 |------|---------------------|
@@ -55,11 +59,11 @@ If there are **no super admins**, the app creates one on startup:
 | **Email** | `superadmin@example.com` |
 | **Password** | `GolfSuper1!` |
 
-Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD` (must pass the same validation rules).
+Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD` (must pass validation).
 
-**Flow:** sign in at **Super admin** → **Create society** (name + first society admin email/password) → that person signs in at **Society admin** to add courses and competitions.
+**Flow:** Super admin signs in and creates society (name + first society admin + shared player password) -> society admin signs in and manages users, courses, and competitions.
 
-**CLI:** `flask --app run create-society-admin email@example.com 'Pass1!word' SOCIETY_ID` adds another society admin to an existing society (use the society id from the database or super admin UI list).
+**CLI:** `flask --app run create-society-admin email@example.com 'Pass1!word' SOCIETY_ID` adds another society admin to an existing society.
 
 ---
 
@@ -67,56 +71,54 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 
 ### Roles
 
-- **Super admin** (`/super-admin/login`): create societies and the **first** society admin for each; **Admins & passwords** per society; **Lock / unlock** a society (society admins cannot sign in or use `/admin` while locked); **My password** and **Super admins** to change your own password, add additional super admins, or remove others (never the last account, never yourself while signed in).
-- **Society admin** (`/admin/login`): sees **all shared courses** (any society admin can edit); creates **competitions** and only sees **their own** competitions and results; can download results as **PDF** (leaderboard first, then full per-player detail); can add more society admins (**Society admin** in the header nav includes a **Home** link back to the dashboard). If the society is **locked** by a super admin, sign-in and the admin area are blocked until it is unlocked.
-- **Players** (login at `/login`): enter scores only for competitions they belong to, using the **competition password** (not a personal password).
+- **Super admin** (`/super-admin/login`): create societies and first society admin, lock/unlock societies, manage super admins, manage own password.
+- **Society admin** (`/admin/login`): manage society players (including archive/restore), shared player password, competitions, courses, and results/PDF.
+- **Players** (`/login`): sign in with **email + personal password** or **email + society shared player password**, then can submit scores for competitions they are entered in.
+
+### Society players and competition entries
+
+- Players are created at **society** level.
+- In competition setup, add-player dropdown shows only **active** society players **not already in that competition**.
+- Players can be marked deleted (archived) from society players; archived players are hidden from active lists and excluded from new competition add/import. They can be restored.
 
 ### Competition management (society admin)
 
-- **Lock competition:** while locked, players cannot change scores (scorecard is read-only); roster changes, CSV import, competition password changes, and per-player **Remove** are disabled until unlock. Deleting the whole competition and viewing **Results** still work.
-- **Remove player:** removes that player from the event and deletes **all scores** for that player in that competition only (the global user account remains for other events).
+- **Competition handicap is event-specific** and stored per competition entry.
+- **Handicap copy-forward:** when adding a player and leaving handicap blank, the app copies their handicap from their most recent previous competition in that society.
+- **Lock competition:** while locked, players cannot change scores; roster changes/import/handicap edits/removals are blocked.
+- **Remove player from competition:** removes that player only from the event and deletes their scores for that event.
 
 ### Stableford points (per hole)
 
-Net strokes for a hole = **gross − handicap strokes on that hole**.
+Net strokes for a hole = **gross - handicap strokes on that hole**.
 
 **Handicap strokes on a hole** (`app/stableford.py`):
 
-1. `base = playing_handicap // 18` — full sets of 18 shots; **every** hole receives `base` strokes.
-2. `remainder = playing_handicap % 18`. If `remainder` is 0 (e.g. playing handicap **18**, **36**, or **54**), **no** hole gets an extra stroke from the remainder: every hole shows the same total handicap shots, and stroke index does not redistribute anything (there is nothing left to split).
-3. If `remainder > 0`, each hole gets **one extra** stroke on holes where **stroke index ≥ 19 − remainder**. Because **SI 18 is the hardest hole** in this app, spare shots go to the **highest** stroke indexes first (then 17, 16, … until `remainder` holes have been given an extra shot).
+1. `base = playing_handicap // 18` -> every hole receives `base`.
+2. `remainder = playing_handicap % 18`.
+3. If `remainder > 0`, each hole gets one extra on holes where **stroke index >= 19 - remainder**.
 
-Example: playing handicap **5** → `base = 0`, `remainder = 5` → extra stroke on holes whose SI is in **14, 15, 16, 17, 18** (the five hardest by this numbering).
+In this app, **SI 18 is hardest** and **SI 1 easiest**.
 
-Points vs **par** for that net score:
+Points vs par:
 
 | vs par | Points |
 |--------|--------|
 | 3+ under | 5 |
-| 2 under (eagle) | 4 |
-| 1 under (birdie) | 3 |
+| 2 under | 4 |
+| 1 under | 3 |
 | Par | 2 |
-| 1 over (bogey) | 1 |
+| 1 over | 1 |
 | 2+ over | 0 |
-
-Totals are summed for the round.
-
-### Competition password
-
-Each competition has **one shared password** (stored hashed). Players sign in with **email + that password**. The session records which competition(s) matched so they only see those events. CSV import and single-player add only need **email** and **handicap**; new player accounts get an internal random credential players never use.
 
 ### Courses and stroke index (SI)
 
-- **Scope:** Courses are **shared across all societies**; any society admin can create or edit them. Competitions pick from the global course list (use the filter when there are many).
-- **Holes:** Exactly **18** holes per course. For each hole you set:
-  - **Par** — integer from **3** to **6**.
-  - **Stroke index** — integer from **1** to **18**, **unique** across the course (the editor enforces uniqueness 1–18).
-- **Meaning of SI in this app:** **18 = hardest hole** on the card (first in line for remainder handicap shots); **1 = easiest**. Enter values so they match **your** society scorecard; the Stableford math uses the convention above.
-- **Delete:** A course can be **deleted** only if no competition references it.
-
-### “Your par” on results
-
-Under each player, the **Par** row is **course par + handicap strokes on that hole** (the gross score that would be net par for that player), so different handicaps show different targets.
+- Courses are shared across societies.
+- Each course has exactly 18 holes.
+- Hole constraints:
+  - Par: `3..6`
+  - Stroke index: `1..18`, unique per course
+- Course deletion allowed only when unused by competitions.
 
 ---
 
@@ -127,17 +129,17 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Open `http://127.0.0.1:5000/` — choose **Player login** or **Admin login**.
+Open `http://127.0.0.1:5000/`.
 
-`run.py` sets **Flask `debug`** (see file comments). With debug off, restart the process after changing Python files. For production, set a strong `SECRET_KEY` in the environment.
+`run.py` controls local debug settings. For production, set a strong `SECRET_KEY`.
 
 ---
 
 ## Run with Docker
 
-The repository includes a `Dockerfile` and `docker-compose.yml`.
+The repo includes `Dockerfile` and `docker-compose.yml`.
 
-The app writes SQLite to Flask's instance path (`/app/instance` in the container). Compose maps that to a host folder so data persists:
+SQLite is stored at `/app/instance` in container and persisted via:
 
 `./instance` (host) -> `/app/instance` (container)
 
@@ -150,21 +152,57 @@ docker compose up --build -d
 
 Open `http://localhost:5000/`.
 
+### Rebuild with no cache
+
+Use this when you need a completely fresh image build:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+Or in one command:
+
+```bash
+docker compose up --build --force-recreate -d
+```
+
 ### Stop
 
 ```bash
 docker compose down
 ```
 
-Your database stays on the host at `instance/golfsociety.sqlite` and is reused on the next start.
+Database remains at `instance/golfsociety.sqlite`.
 
-### Optional environment variables
+### Environment variables with `docker-compose.override.yaml`
 
-- `SECRET_KEY` (recommended strong value outside local testing)
+`docker-compose.yml` already maps:
+
+- `SECRET_KEY`
 - `BOOTSTRAP_SUPER_ADMIN_EMAIL`
 - `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 
-PowerShell example:
+Preferred approach is keeping local env values in `docker-compose.override.yaml` (auto-loaded by Compose) rather than editing base compose file.
+
+Example `docker-compose.override.yaml`:
+
+```yaml
+services:
+  golfsociety:
+    environment:
+      SECRET_KEY: "replace-with-strong-secret"
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: "superadmin@example.com"
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: "GolfSuper1!"
+```
+
+Then run:
+
+```bash
+docker compose up --build -d
+```
+
+PowerShell alternative (session-only env vars):
 
 ```powershell
 $env:SECRET_KEY="replace-with-strong-secret"
@@ -172,32 +210,37 @@ $env:BOOTSTRAP_SUPER_ADMIN_EMAIL="superadmin@example.com"
 $env:BOOTSTRAP_SUPER_ADMIN_PASSWORD="GolfSuper1!"
 docker compose up --build -d
 ```
-# Alternative without compose
-```
+
+### Alternative without Compose
+
+```bash
 mkdir instance
 docker build -t golfsociety .
 docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instance golfsociety
 ```
+
 ---
 
 ## Project layout (high level)
 
 | Path | Purpose |
 |------|---------|
-| `app/__init__.py` | App factory, SQLite migration hook, **bootstrap admin**, CLI |
-| `app/models.py` | Admins, users, courses, holes, competitions, scores |
-| `app/stableford.py` | Handicap strokes and Stableford points |
-| `app/scoring_helpers.py` | Leaderboards and player scorecards |
+| `app/__init__.py` | App factory, session/login setup, SQLite migration hook, CLI |
+| `app/models.py` | Super admins, societies, admins, users, courses, holes, competitions, scores |
+| `app/stableford.py` | Handicap/stableford math |
+| `app/scoring_helpers.py` | Leaderboards and scorecard helpers |
 | `app/super_admin_routes.py` / `admin_routes.py` / `user_routes.py` / `main_routes.py` | HTTP routes |
-| `app/db_migrate.py` | SQLite upgrades from older single-tier installs |
-| `templates/` | Jinja pages |
-| `static/style.css` | Layout, theme, optional `static/images/golf-course-bg.jpg` |
-| `docs/images/` | Diagrams for documentation (e.g. stroke index SVG) |
-| `docs/screenshots/` | Optional UI screenshots referenced above |
-| `instance/golfsociety.sqlite` | Database (created on first run) |
+| `app/db_migrate.py` | SQLite upgrades from earlier schema versions |
+| `templates/` | Jinja templates |
+| `static/style.css` | Theme/layout |
+| `docs/images/` | Diagrams |
+| `docs/screenshots/` | Screenshot assets |
+| `instance/golfsociety.sqlite` | SQLite database |
 
 ---
 
 ## CSV import
 
-Expected columns (header row): **`email`** and **`handicap`** (aliases such as `e_mail`, `playing_handicap`, `hcp` are accepted). No passwords in the file — players use the **competition password** set on the competition page.
+Expected columns (header row): **`email`** and **`handicap`** (aliases like `e_mail`, `playing_handicap`, `hcp` are accepted).
+
+Import only adds/updates **active society players**. Archived/deleted players are skipped until restored.

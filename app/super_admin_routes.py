@@ -7,6 +7,7 @@ from . import db
 from .decorators import super_admin_required
 from .models import Admin, Society, SuperAdmin
 from .validators import validate_email_address, validate_password
+from .validators import validate_competition_password
 
 bp = Blueprint("super_admin", __name__, url_prefix="/super-admin")
 
@@ -60,12 +61,14 @@ def society_new():
         name = (request.form.get("society_name") or "").strip()
         email_raw = request.form.get("admin_email", "")
         password = request.form.get("admin_password", "")
+        player_password = request.form.get("player_password", "")
         if not name:
             flash("Society name is required.", "error")
             return render_template("super_admin/society_new.html")
         try:
             email = validate_email_address(email_raw)
             validate_password(password)
+            validate_competition_password(player_password)
         except ValueError as e:
             flash(str(e), "error")
             return render_template("super_admin/society_new.html")
@@ -75,13 +78,17 @@ def society_new():
             return render_template("super_admin/society_new.html")
 
         soc = Society(name=name)
+        soc.set_player_password(player_password)
         db.session.add(soc)
         db.session.flush()
         admin = Admin(email=email, society_id=soc.id)
         admin.set_password(password)
         db.session.add(admin)
         db.session.commit()
-        flash(f"Society “{name}” created with first admin {email}.", "success")
+        flash(
+            f"Society “{name}” created with first admin {email} and a shared player password.",
+            "success",
+        )
         return redirect(url_for("super_admin.dashboard"))
 
     return render_template("super_admin/society_new.html")

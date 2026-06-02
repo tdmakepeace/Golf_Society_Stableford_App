@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Player account{% endblock %}
+{% block home_href %}{{ url_for('user.dashboard') }}{% endblock %}
+{% block nav %}
+  <nav class="nav">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <span class="nav-user">{{ current_user.email }}</span>
+    <a class="nav-btn" href="{{ url_for('user.dashboard') }}">My competitions</a>
+    <a class="nav-btn nav-btn--ghost" href="{{ url_for('user.logout') }}">Logout</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <h1>My password</h1>
+  <p class="muted">Use your current personal password, or your society shared player password, to set a new personal password.</p>
+  <form method="post" class="card form">
+    <label>Current password
+      <input type="password" name="current_password" required autocomplete="current-password">
+    </label>
+    <label>New password
+      <input type="password" name="new_password" required autocomplete="new-password">
+    </label>
+    <label>Confirm new password
+      <input type="password" name="confirm_password" required autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn primary">Update password</button>
+  </form>
+{% endblock %}

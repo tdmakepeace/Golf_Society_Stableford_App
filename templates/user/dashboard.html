@@ -5,6 +5,7 @@
   <nav class="nav">
     <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
     <span class="nav-user">{{ current_user.email }}</span>
+    <a class="nav-btn" href="{{ url_for('user.account') }}">My password</a>
     <a class="nav-btn nav-btn--ghost" href="{{ url_for('user.logout') }}">Logout</a>
   </nav>
 {% endblock %}

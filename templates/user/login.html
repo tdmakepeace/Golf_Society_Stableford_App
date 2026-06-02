@@ -16,7 +16,7 @@
   <div class="player-login-shell">
     <div class="player-login-card">
       <h1 class="player-login-title">Player login</h1>
-      <p class="player-login-lead">Your <strong>email</strong> and the <strong>event password</strong> from your organiser (same for everyone in that competition).</p>
+      <p class="player-login-lead">Your <strong>email</strong> and either your <strong>personal password</strong> or your society's shared player password.</p>
       <form method="post" class="form form--player-login" novalidate>
         <label class="field-label" for="player-email">Email</label>
         <input
@@ -31,7 +31,7 @@
           spellcheck="false"
           placeholder="you@example.com"
         >
-        <label class="field-label" for="player-password">Competition password</label>
+        <label class="field-label" for="player-password">Password</label>
         <input
           id="player-password"
           class="input-touch"
@@ -39,7 +39,7 @@
           name="password"
           required
           autocomplete="current-password"
-          placeholder="Event password"
+          placeholder="Personal or shared password"
         >
         <button type="submit" class="btn btn-touch btn-primary-block">Sign in</button>
       </form>
