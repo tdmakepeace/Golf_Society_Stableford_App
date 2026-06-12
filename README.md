@@ -72,14 +72,19 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 ### Roles
 
 - **Super admin** (`/super-admin/login`): create societies and first society admin, lock/unlock societies, manage super admins, manage own password.
-- **Society admin** (`/admin/login`): manage society players (including archive/restore), shared player password, competitions, courses, and results/PDF.
+- **Society admin** (`/admin/login`): manage society players (create, CSV import, archive/restore, permanent delete, reset to shared password), shared player password, competitions, courses, and results/PDF.
 - **Players** (`/login`): sign in with **email + personal password** or **email + society shared player password**, then can submit scores for competitions they are entered in.
 
 ### Society players and competition entries
 
-- Players are created at **society** level.
-- In competition setup, add-player dropdown shows only **active** society players **not already in that competition**.
-- Players can be marked deleted (archived) from society players; archived players are hidden from active lists and excluded from new competition add/import. They can be restored.
+- Players are created at **society** level (`/admin/users`).
+- **Shared player password:** set once per society. Players can sign in with email + shared password or a personal password.
+- **Create player:** email required; personal password optional — if left blank, the new player gets the shared player password (set the shared password first).
+- **CSV import (society players):** bulk-create from `email` and optional `password` columns. Blank password uses the shared player password. Archived players in the CSV are restored.
+- **Reset to shared password:** on an active player, resets their personal password to match the society shared password.
+- **Archive / restore:** mark deleted hides a player from active lists and new competition add/import; restore brings them back.
+- **Permanent delete:** archived players can be fully removed (competition entries and scores for that player are deleted).
+- In competition setup, enter an **email** for an active society player not already in that event (suggestions from a datalist). Use **Create society player…** to open society players in a popup, add someone, then refresh the competition page.
 
 ### Competition management (society admin)
 
@@ -115,10 +120,15 @@ Points vs par:
 
 - Courses are shared across societies.
 - Each course has exactly 18 holes.
+- **New course:** enter name and postcode, then either fill the hole table manually or select a CSV with columns **`hole`**, **`par`**, and **`si`** (18 rows). The CSV fills the table in the browser; you can edit values before saving.
 - Hole constraints:
   - Par: `3..6`
   - Stroke index: `1..18`, unique per course
 - Course deletion allowed only when unused by competitions.
+
+### UI
+
+- Password fields include a **Show password** / **Hide password** toggle so you can check what you typed before saving.
 
 ---
 
@@ -230,9 +240,11 @@ docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instan
 | `app/stableford.py` | Handicap/stableford math |
 | `app/scoring_helpers.py` | Leaderboards and scorecard helpers |
 | `app/super_admin_routes.py` / `admin_routes.py` / `user_routes.py` / `main_routes.py` | HTTP routes |
+| `app/csv_players.py` / `app/csv_helpers.py` | CSV parsing (competition roster and society players) |
 | `app/db_migrate.py` | SQLite upgrades from earlier schema versions |
 | `templates/` | Jinja templates |
 | `static/style.css` | Theme/layout |
+| `static/password-toggle.js` | Show/hide password on form fields |
 | `docs/images/` | Diagrams |
 | `docs/screenshots/` | Screenshot assets |
 | `instance/golfsociety.sqlite` | SQLite database |
@@ -241,6 +253,20 @@ docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instan
 
 ## CSV import
 
+### Competition roster (`/admin/competitions/<id>`)
+
 Expected columns (header row): **`email`** and **`handicap`** (aliases like `e_mail`, `playing_handicap`, `hcp` are accepted).
 
-Import only adds/updates **active society players**. Archived/deleted players are skipped until restored.
+Import only adds/updates players **already in the society** and **not archived**. Archived players are skipped until restored.
+
+### Society players (`/admin/users`)
+
+Expected columns (header row): **`email`** and optional **`password`** (aliases like `e_mail`, `pwd`, `pass` are accepted).
+
+- Blank **password** uses the society **shared player password** (must be set first).
+- A non-blank password must meet the usual personal password rules (8+ chars, upper, lower, digit, symbol).
+- Existing active players are skipped; archived players in the CSV are restored.
+
+### New course (hole layout)
+
+Optional CSV with columns **`hole`**, **`par`**, and **`si`** (aliases like `hole_number`, `stroke_index` are accepted). All 18 holes must be present. Name and postcode are still entered on the form.

@@ -1,14 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Society players{% endblock %}
 {% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
-{% block nav %}{% include "admin/_nav.html" %}{% endblock %}
+{% block body_class %}{% if popup %}page-popup{% endif %}{% endblock %}
+{% block nav %}{% if not popup %}{% include "admin/_nav.html" %}{% endif %}{% endblock %}
 {% block body %}
+  {% if popup %}
+    <p class="actions-bar">
+      <button type="button" class="btn secondary" onclick="window.close();">Close window</button>
+    </p>
+    <p class="muted">Create a society player here, then return to your competition and refresh the player list.</p>
+  {% endif %}
+
   <h1>Society players</h1>
   <p class="muted">Players are created once at society level, then added to competitions with event-specific handicap.</p>
 
+  {% if not popup %}
   <section class="card">
     <h2>Shared player password</h2>
-    <p class="muted">Used for first login across this society. Players can then set their own password in player account.</p>
+    <p class="muted">Used for first login across this society. Players can then set their own password in player account. Blank passwords on create or CSV import use this shared password.</p>
     <form method="post" action="{{ url_for('admin.society_set_player_password') }}" class="form">
       <label>New shared player password
         <input type="password" name="society_player_password" required minlength="8" autocomplete="new-password" placeholder="e.g. SummerSeries26">
@@ -18,18 +27,32 @@
   </section>
 
   <section class="card">
+    <h2>Import players (CSV)</h2>
+    <p class="muted">Columns: <code>email</code> and optional <code>password</code> (aliases: <code>e_mail</code>, <code>pwd</code>, <code>pass</code>). Header row required. Blank password uses the shared player password.</p>
+    <form method="post" action="{{ url_for('admin.society_import_users') }}" enctype="multipart/form-data" class="form">
+      <label>CSV file
+        <input type="file" name="csv_file" accept=".csv,text/csv" required>
+      </label>
+      <button type="submit" class="btn primary">Import players</button>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="card">
     <h2>Add player</h2>
     <form method="post" action="{{ url_for('admin.society_user_new') }}" class="form inline-grid">
+      {% if popup %}<input type="hidden" name="popup" value="1">{% endif %}
       <label>Email
         <input type="email" name="email" required autocomplete="off">
       </label>
-      <label>Initial personal password
-        <input type="password" name="password" required autocomplete="new-password">
+      <label>Initial personal password <span class="muted">(optional — uses shared password if blank)</span>
+        <input type="password" name="password" autocomplete="new-password">
       </label>
       <button type="submit" class="btn primary">Create player</button>
     </form>
   </section>
 
+  {% if not popup %}
   <section class="card">
     <h2>Players</h2>
     {% if users %}
@@ -38,6 +61,9 @@
           <li class="list-row">
             <span>{{ u.email }}</span>
             <span class="list-actions">
+              <form method="post" action="{{ url_for('admin.society_user_reset_password', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Reset {{ u.email }} personal password to the shared player password?');">
+                <button type="submit" class="btn secondary small">Reset to shared password</button>
+              </form>
               <form method="post" action="{{ url_for('admin.society_user_mark_deleted', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Mark {{ u.email }} as deleted? They will be hidden from this page and from new competition player lists.');">
                 <button type="submit" class="btn danger small">Mark deleted</button>
               </form>
@@ -61,6 +87,9 @@
               <form method="post" action="{{ url_for('admin.society_user_restore', user_id=u.id) }}" class="inline-form">
                 <button type="submit" class="btn secondary small">Restore</button>
               </form>
+              <form method="post" action="{{ url_for('admin.society_user_delete_permanent', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Permanently delete {{ u.email }}? This removes all their competition entries and scores and cannot be undone.');">
+                <button type="submit" class="btn danger small">Delete permanently</button>
+              </form>
             </span>
           </li>
         {% endfor %}
@@ -69,4 +98,15 @@
       <p class="muted">No archived players.</p>
     {% endif %}
   </section>
+  {% endif %}
+
+  {% if popup and player_created %}
+  <script>
+    (function () {
+      if (window.opener && !window.opener.closed) {
+        window.opener.location.reload();
+      }
+    })();
+  </script>
+  {% endif %}
 {% endblock %}

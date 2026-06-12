@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from flask_login import current_user, login_user, logout_user
 
 from . import db
+from .csv_helpers import iter_society_users_from_csv
 from .csv_players import iter_players_from_csv
 from .decorators import admin_required
 from .models import Admin, Competition, CompetitionPlayer, Course, Hole, Score, Society, User
@@ -25,6 +26,24 @@ def _courses_query(search: str = ""):
         like = f"%{term}%"
         q = q.filter(or_(Course.name.ilike(like), Course.postcode.ilike(like)))
     return q
+
+
+def _is_popup_request() -> bool:
+    return (request.args.get("popup") or request.form.get("popup") or "") == "1"
+
+
+def _apply_user_password(user: User, password: str, society: Society) -> None:
+    """Set personal password from CSV/form, or copy society shared password hash."""
+    pw = (password or "").strip()
+    if pw:
+        validate_password(pw)
+        user.set_password(pw)
+    else:
+        if not society.has_player_password:
+            raise ValueError(
+                "Set a shared player password first, or provide an initial personal password."
+            )
+        society.copy_shared_password_to_user(user)
 
 
 def _latest_previous_handicap_for_user(comp: Competition, user_id: int) -> int:
@@ -107,6 +126,27 @@ def dashboard():
     )
 
 
+def _parse_course_holes_from_form(form):
+    """Return (pars, sis) lists or raise ValueError."""
+    pars = []
+    sis = []
+    for i in range(1, 19):
+        try:
+            p = int(form.get(f"par_{i}", "4"))
+            si = int(form.get(f"si_{i}", str(i)))
+        except (TypeError, ValueError):
+            raise ValueError("Invalid par or stroke index.")
+        if p < 3 or p > 6:
+            raise ValueError(f"Hole {i}: par must be between 3 and 6.")
+        if si < 1 or si > 18:
+            raise ValueError(f"Hole {i}: stroke index must be 1–18.")
+        pars.append(p)
+        sis.append(si)
+    if len(set(sis)) != 18:
+        raise ValueError("Stroke indexes must be unique 1–18 across all holes.")
+    return pars, sis
+
+
 @bp.route("/courses/new", methods=["GET", "POST"])
 @admin_required
 def course_new():
@@ -117,27 +157,17 @@ def course_new():
             flash("Course name is required.", "error")
             return render_template("admin/course_form.html", course=None, holes=[])
 
-        pars = []
-        sis = []
-        for i in range(1, 19):
-            try:
-                p = int(request.form.get(f"par_{i}", "4"))
-                si = int(request.form.get(f"si_{i}", str(i)))
-            except (TypeError, ValueError):
-                flash("Invalid par or stroke index.", "error")
-                return render_template("admin/course_form.html", course=None, holes=[])
-            if p < 3 or p > 6:
-                flash(f"Hole {i}: par must be between 3 and 6.", "error")
-                return render_template("admin/course_form.html", course=None, holes=[])
-            if si < 1 or si > 18:
-                flash(f"Hole {i}: stroke index must be 1–18.", "error")
-                return render_template("admin/course_form.html", course=None, holes=[])
-            pars.append(p)
-            sis.append(si)
-
-        if len(set(sis)) != 18:
-            flash("Stroke indexes must be unique 1–18 across all holes.", "error")
-            return render_template("admin/course_form.html", course=None, holes=[])
+        try:
+            pars, sis = _parse_course_holes_from_form(request.form)
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template(
+                "admin/course_form.html",
+                course=None,
+                holes=[],
+                form_name=name,
+                form_postcode=postcode,
+            )
 
         c = Course(
             name=name,
@@ -311,10 +341,10 @@ def competition_add_player(comp_id: int):
     ).first()
     if user is None:
         flash(
-            "That player is not in this society yet. Add them under Society players first.",
+            "That player is not in this society yet. Create them under Society players first.",
             "error",
         )
-        return redirect(url_for("admin.society_users"))
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
 
     existing = CompetitionPlayer.query.filter_by(
         competition_id=comp.id, user_id=user.id
@@ -753,6 +783,8 @@ def society_users():
         users=users,
         archived_users=archived_users,
         society=current_user.society,
+        popup=_is_popup_request(),
+        player_created=request.args.get("created") == "1",
     )
 
 
@@ -761,23 +793,127 @@ def society_users():
 def society_user_new():
     email_raw = request.form.get("email", "")
     password = request.form.get("password", "")
+    popup = _is_popup_request()
     try:
         email = validate_email_address(email_raw)
-        validate_password(password)
     except ValueError as e:
         flash(str(e), "error")
-        return redirect(url_for("admin.society_users"))
+        return redirect(url_for("admin.society_users", popup=1 if popup else None))
 
     existing_any = User.query.filter_by(email=email).first()
     if existing_any:
         flash("That email is already in use.", "error")
-        return redirect(url_for("admin.society_users"))
+        return redirect(url_for("admin.society_users", popup=1 if popup else None))
 
     user = User(email=email, society_id=current_user.society_id)
-    user.set_password(password)
+    try:
+        _apply_user_password(user, password, current_user.society)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.society_users", popup=1 if popup else None))
+
     db.session.add(user)
     db.session.commit()
     flash("Society player created.", "success")
+    if popup:
+        return redirect(url_for("admin.society_users", popup=1, created=1))
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/import-csv", methods=["POST"])
+@admin_required
+def society_import_users():
+    upload = request.files.get("csv_file")
+    if not upload or not upload.filename:
+        flash("Choose a CSV file to upload.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    try:
+        raw = upload.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        flash("Could not read CSV as UTF-8.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    try:
+        rows = list(iter_society_users_from_csv(raw))
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.society_users"))
+
+    if not rows:
+        flash("No player rows found in CSV.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    society = current_user.society
+    created = 0
+    restored = 0
+    skipped: list[str] = []
+    for email_raw, password in rows:
+        try:
+            email = validate_email_address(email_raw)
+        except ValueError:
+            skipped.append(f"invalid email {email_raw!r}")
+            continue
+
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            if existing.society_id != current_user.society_id:
+                skipped.append(f"{email}: email used by another society")
+                continue
+            if not existing.is_deleted:
+                skipped.append(f"{email}: already an active player")
+                continue
+            existing.is_deleted = False
+            try:
+                _apply_user_password(existing, password or "", society)
+            except ValueError as e:
+                skipped.append(f"{email}: {e}")
+                continue
+            restored += 1
+            continue
+
+        user = User(email=email, society_id=current_user.society_id)
+        try:
+            _apply_user_password(user, password or "", society)
+        except ValueError as e:
+            skipped.append(f"{email}: {e}")
+            continue
+        db.session.add(user)
+        created += 1
+
+    db.session.commit()
+    msg = f"Import finished: {created} created"
+    if restored:
+        msg += f", {restored} restored from archive"
+    msg += ". Blank passwords use the shared player password."
+    if skipped:
+        msg += f" Skipped {len(skipped)} row(s): " + "; ".join(skipped[:8])
+        if len(skipped) > 8:
+            msg += "…"
+    flash(msg, "success")
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/<int:user_id>/reset-password", methods=["POST"])
+@admin_required
+def society_user_reset_password(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.society_id != current_user.society_id:
+        flash("That player is not in your society.", "error")
+        return redirect(url_for("admin.society_users"))
+    if user.is_deleted:
+        flash("Restore the player before resetting their password.", "error")
+        return redirect(url_for("admin.society_users"))
+    if not current_user.society.has_player_password:
+        flash("Set a shared player password first.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    current_user.society.copy_shared_password_to_user(user)
+    db.session.commit()
+    flash(
+        f"{user.email}: personal password reset to the shared player password.",
+        "success",
+    )
     return redirect(url_for("admin.society_users"))
 
 
@@ -812,4 +948,26 @@ def society_user_restore(user_id: int):
     user.is_deleted = False
     db.session.commit()
     flash(f"{user.email} restored.", "success")
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@admin_required
+def society_user_delete_permanent(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.society_id != current_user.society_id:
+        flash("That player is not in your society.", "error")
+        return redirect(url_for("admin.society_users"))
+    if not user.is_deleted:
+        flash("Mark the player deleted before permanently removing them.", "error")
+        return redirect(url_for("admin.society_users"))
+
+    email = user.email
+    Score.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    CompetitionPlayer.query.filter_by(user_id=user.id).delete(
+        synchronize_session=False
+    )
+    db.session.delete(user)
+    db.session.commit()
+    flash(f"{email} permanently deleted.", "success")
     return redirect(url_for("admin.society_users"))

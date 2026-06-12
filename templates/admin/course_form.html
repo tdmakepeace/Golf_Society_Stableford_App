@@ -7,11 +7,17 @@
   <p class="muted">Course details are shared with every society — enter once and all clubs can use this course.</p>
   <form method="post" class="card form holes-form">
     <label>Course name
-      <input type="text" name="name" required value="{{ course.name if course else '' }}">
+      <input type="text" name="name" required value="{{ course.name if course else (form_name|default('', true)) }}">
     </label>
     <label>Postcode <span class="muted">(shown with name in lists, e.g. “Milford (BN2 1AA)”)</span>
-      <input type="text" name="postcode" maxlength="32" value="{{ course.postcode if course else '' }}" placeholder="e.g. BN2 1AA">
+      <input type="text" name="postcode" maxlength="32" value="{{ course.postcode if course else (form_postcode|default('', true)) }}" placeholder="e.g. BN2 1AA">
     </label>
+    {% if not course %}
+    <label>Import holes from CSV <span class="muted">(optional — columns <code>hole</code>, <code>par</code>, <code>si</code>; still enter name and postcode above)</span>
+      <input type="file" name="holes_csv" accept=".csv,text/csv">
+    </label>
+    <p class="muted small">Select a CSV file to fill the hole table below. You can edit values before saving. Columns: <code>hole</code>, <code>par</code>, <code>si</code> (18 rows).</p>
+    {% endif %}
     <p class="muted">Enter par (3–6) and stroke index (1–18, unique) for each hole. Stroke index <strong>18</strong> is the hardest hole (gets an extra shot before lower numbers); <strong>1</strong> is the easiest.</p>
     <div class="table-wrap">
       <table class="data">
@@ -32,4 +38,49 @@
     </div>
     <button type="submit" class="btn primary">Save</button>
   </form>
+  {% if not course %}
+  <script>
+    (function () {
+      var input = document.querySelector('input[name="holes_csv"]');
+      if (!input) return;
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          var text = reader.result || "";
+          var lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(function (l) { return l.trim(); });
+          if (lines.length < 2) return;
+          var headers = lines[0].split(",").map(function (h) {
+            return h.trim().toLowerCase().replace(/[\s-]+/g, "_");
+          });
+          function col(name, aliases) {
+            var keys = [name].concat(aliases || []);
+            for (var i = 0; i < keys.length; i++) {
+              var idx = headers.indexOf(keys[i]);
+              if (idx >= 0) return idx;
+            }
+            return -1;
+          }
+          var holeIdx = col("hole", ["hole_number", "no", "#"]);
+          var parIdx = col("par");
+          var siIdx = col("si", ["stroke_index", "strokeindex", "index"]);
+          if (holeIdx < 0 || parIdx < 0 || siIdx < 0) return;
+          for (var r = 1; r < lines.length; r++) {
+            var cells = lines[r].split(",");
+            var hole = parseInt(cells[holeIdx], 10);
+            var par = parseInt(cells[parIdx], 10);
+            var si = parseInt(cells[siIdx], 10);
+            if (!hole || hole < 1 || hole > 18) continue;
+            var parEl = document.querySelector('input[name="par_' + hole + '"]');
+            var siEl = document.querySelector('input[name="si_' + hole + '"]');
+            if (parEl && !isNaN(par)) parEl.value = par;
+            if (siEl && !isNaN(si)) siEl.value = si;
+          }
+        };
+        reader.readAsText(file);
+      });
+    })();
+  </script>
+  {% endif %}
 {% endblock %}

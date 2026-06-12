@@ -42,6 +42,15 @@ class Society(db.Model):
             return False
         return check_password_hash(self.player_password_hash, password)
 
+    @property
+    def has_player_password(self) -> bool:
+        return bool(self.player_password_hash)
+
+    def copy_shared_password_to_user(self, user: User) -> None:
+        if not self.player_password_hash:
+            raise ValueError("Shared player password is not set.")
+        user.password_hash = self.player_password_hash
+
 
 class Admin(UserMixin, db.Model):
     """Society-scoped organiser (creates competitions; shares courses with society)."""

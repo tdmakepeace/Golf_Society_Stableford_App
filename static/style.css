@@ -380,6 +380,51 @@ h2 {
   color: var(--text);
 }
 
+.password-field-wrap {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 0.35rem;
+}
+
+.password-field-wrap > input {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+.password-reveal-btn {
+  display: inline-block;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.password-reveal-btn:hover {
+  color: var(--text);
+}
+
+.form--player-login .password-field-wrap {
+  max-width: none;
+  margin-top: 0;
+}
+
+.data .password-field-wrap {
+  max-width: none;
+}
+
+.data .password-reveal-btn {
+  margin-top: 0.35rem;
+}
+
 .inline-grid {
   display: grid;
   gap: 0.75rem;
