@@ -5,7 +5,8 @@ from flask_login import current_user, login_user, logout_user
 
 from . import db
 from .decorators import user_required
-from .models import Competition, CompetitionPlayer, Hole, Score, User
+from .models import Competition, CompetitionPlayer, Hole, Score, Society, User
+from .player_helpers import apply_user_password
 from .scoring_helpers import player_result
 from .validators import validate_email_address, validate_password
 
@@ -20,6 +21,67 @@ def _can_authenticate_user(user: User, password: str) -> bool:
     if user.society and user.society.check_player_password(password):
         return True
     return False
+
+
+def _society_for_register_token(token: str) -> Society | None:
+    society = Society.query.filter_by(register_token=token).first()
+    if society is None or society.locked:
+        return None
+    return society
+
+
+@bp.route("/register/<token>", methods=["GET", "POST"])
+def register(token: str):
+    if current_user.is_authenticated and isinstance(current_user, User):
+        return redirect(url_for("user.dashboard"))
+
+    society = _society_for_register_token(token)
+    if society is None:
+        flash("This registration link is invalid or no longer available.", "error")
+        return redirect(url_for("user.login"))
+
+    if request.method == "POST":
+        email_raw = request.form.get("email", "")
+        password = request.form.get("password", "")
+        try:
+            email = validate_email_address(email_raw)
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template("user/register.html", society=society)
+
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            if existing.society_id != society.id:
+                flash("That email is already registered with another society.", "error")
+                return render_template("user/register.html", society=society)
+            if not existing.is_deleted:
+                flash("That email is already registered. Sign in instead.", "error")
+                return render_template("user/register.html", society=society)
+            try:
+                apply_user_password(existing, password, society)
+            except ValueError as e:
+                flash(str(e), "error")
+                return render_template("user/register.html", society=society)
+            existing.is_deleted = False
+            db.session.commit()
+            login_user(existing)
+            flash(f"Welcome back to {society.name}!", "success")
+            return redirect(url_for("user.dashboard"))
+
+        user = User(email=email, society_id=society.id)
+        try:
+            apply_user_password(user, password, society)
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template("user/register.html", society=society)
+
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        flash(f"Welcome to {society.name}!", "success")
+        return redirect(url_for("user.dashboard"))
+
+    return render_template("user/register.html", society=society)
 
 
 @bp.route("/login", methods=["GET", "POST"])

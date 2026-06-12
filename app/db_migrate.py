@@ -5,6 +5,8 @@ Safe to run repeatedly.
 
 from __future__ import annotations
 
+import secrets
+
 from sqlalchemy import inspect, text
 
 from . import db
@@ -175,6 +177,28 @@ def run_sqlite_legacy_migrations() -> None:
                         "ALTER TABLE societies ADD COLUMN player_password_hash VARCHAR(256)"
                     )
                 )
+            cols_soc = _cols("societies")
+            if "register_token" not in cols_soc:
+                conn.execute(
+                    text(
+                        "ALTER TABLE societies ADD COLUMN register_token VARCHAR(64)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_societies_register_token "
+                        "ON societies (register_token)"
+                    )
+                )
+                rows = conn.execute(text("SELECT id FROM societies")).fetchall()
+                for (sid,) in rows:
+                    token = secrets.token_urlsafe(32)
+                    conn.execute(
+                        text(
+                            "UPDATE societies SET register_token = :token WHERE id = :sid"
+                        ),
+                        {"token": token, "sid": sid},
+                    )
             conn.execute(
                 text(
                     "UPDATE societies SET player_password_hash = ("

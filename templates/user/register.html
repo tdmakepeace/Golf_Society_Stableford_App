@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Join {{ society.name }} · Golf Society Stableford App{% endblock %}
+{% block extra_head %}
+  <meta name="theme-color" content="#1a2332">
+  <meta name="color-scheme" content="dark">
+{% endblock %}
+{% block body_class %}page-player-login{% endblock %}
+{% block home_href %}{{ url_for('main.index') }}{% endblock %}
+{% block nav %}
+  <nav class="nav nav--player-login">
+    <a class="nav-btn" href="{{ url_for('main.index') }}">Home</a>
+    <a class="nav-btn nav-btn--ghost" href="{{ url_for('user.login') }}">Sign in</a>
+  </nav>
+{% endblock %}
+{% block body %}
+  <div class="player-login-shell">
+    <div class="player-login-card">
+      <h1 class="player-login-title">Join {{ society.name }}</h1>
+      <p class="player-login-lead">Create your player account with your <strong>email</strong>. Leave password blank to use your society's shared player password, or set a personal one now.</p>
+      <form method="post" class="form form--player-login" novalidate>
+        <label class="field-label" for="player-email">Email</label>
+        <input
+          id="player-email"
+          class="input-touch"
+          type="email"
+          name="email"
+          required
+          autocomplete="username"
+          inputmode="email"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder="you@example.com"
+        >
+        <label class="field-label" for="player-password">Personal password <span class="muted">(optional)</span></label>
+        <input
+          id="player-password"
+          class="input-touch"
+          type="password"
+          name="password"
+          autocomplete="new-password"
+          placeholder="Leave blank for shared password"
+        >
+        <button type="submit" class="btn btn-touch btn-primary-block">Create account</button>
+      </form>
+      <p class="muted" style="margin-top: 1rem; text-align: center;">Already have an account? <a href="{{ url_for('user.login') }}">Sign in</a></p>
+    </div>
+  </div>
+{% endblock %}

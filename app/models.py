@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -29,6 +31,7 @@ class Society(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     player_password_hash = db.Column(db.String(256), nullable=True)
+    register_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     locked = db.Column(db.Boolean, nullable=False, default=False)
 
     admins = db.relationship("Admin", back_populates="society", lazy="dynamic")
@@ -50,6 +53,14 @@ class Society(db.Model):
         if not self.player_password_hash:
             raise ValueError("Shared player password is not set.")
         user.password_hash = self.player_password_hash
+
+    @staticmethod
+    def generate_register_token() -> str:
+        return secrets.token_urlsafe(32)
+
+    def ensure_register_token(self) -> None:
+        if not self.register_token:
+            self.register_token = Society.generate_register_token()
 
 
 class Admin(UserMixin, db.Model):

@@ -9,6 +9,7 @@ from .csv_helpers import iter_society_users_from_csv
 from .csv_players import iter_players_from_csv
 from .decorators import admin_required
 from .models import Admin, Competition, CompetitionPlayer, Course, Hole, Score, Society, User
+from .player_helpers import apply_user_password
 from .scoring_helpers import competition_leaderboard
 from .validators import (
     validate_email_address,
@@ -30,20 +31,6 @@ def _courses_query(search: str = ""):
 
 def _is_popup_request() -> bool:
     return (request.args.get("popup") or request.form.get("popup") or "") == "1"
-
-
-def _apply_user_password(user: User, password: str, society: Society) -> None:
-    """Set personal password from CSV/form, or copy society shared password hash."""
-    pw = (password or "").strip()
-    if pw:
-        validate_password(pw)
-        user.set_password(pw)
-    else:
-        if not society.has_player_password:
-            raise ValueError(
-                "Set a shared player password first, or provide an initial personal password."
-            )
-        society.copy_shared_password_to_user(user)
 
 
 def _latest_previous_handicap_for_user(comp: Competition, user_id: int) -> int:
@@ -768,6 +755,10 @@ def competition_import_players(comp_id: int):
 @bp.route("/users")
 @admin_required
 def society_users():
+    society = current_user.society
+    if not society.register_token:
+        society.ensure_register_token()
+        db.session.commit()
     users = (
         User.query.filter_by(society_id=current_user.society_id, is_deleted=False)
         .order_by(User.email)
@@ -782,10 +773,26 @@ def society_users():
         "admin/users.html",
         users=users,
         archived_users=archived_users,
-        society=current_user.society,
+        society=society,
+        register_url=url_for(
+            "user.register", token=society.register_token, _external=True
+        ),
         popup=_is_popup_request(),
         player_created=request.args.get("created") == "1",
     )
+
+
+@bp.route("/users/register-link/regenerate", methods=["POST"])
+@admin_required
+def society_regenerate_register_token():
+    society = current_user.society
+    society.register_token = Society.generate_register_token()
+    db.session.commit()
+    flash(
+        "Registration link updated. Share the new link — old links no longer work.",
+        "success",
+    )
+    return redirect(url_for("admin.society_users"))
 
 
 @bp.route("/users/new", methods=["POST"])
@@ -807,7 +814,7 @@ def society_user_new():
 
     user = User(email=email, society_id=current_user.society_id)
     try:
-        _apply_user_password(user, password, current_user.society)
+        apply_user_password(user, password, current_user.society)
     except ValueError as e:
         flash(str(e), "error")
         return redirect(url_for("admin.society_users", popup=1 if popup else None))
@@ -865,7 +872,7 @@ def society_import_users():
                 continue
             existing.is_deleted = False
             try:
-                _apply_user_password(existing, password or "", society)
+                apply_user_password(existing, password or "", society)
             except ValueError as e:
                 skipped.append(f"{email}: {e}")
                 continue
@@ -874,7 +881,7 @@ def society_import_users():
 
         user = User(email=email, society_id=current_user.society_id)
         try:
-            _apply_user_password(user, password or "", society)
+            apply_user_password(user, password or "", society)
         except ValueError as e:
             skipped.append(f"{email}: {e}")
             continue

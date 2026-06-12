@@ -819,3 +819,18 @@ td.actions {
 table.data tfoot th {
   background: rgba(61, 156, 245, 0.08);
 }
+
+.register-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.register-link-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  font-size: 0.85rem;
+}

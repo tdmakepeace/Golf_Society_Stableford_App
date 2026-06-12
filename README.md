@@ -61,7 +61,7 @@ If there are **no super admins**, the app creates one on startup:
 
 Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD` (must pass validation).
 
-**Flow:** Super admin signs in and creates society (name + first society admin + shared player password) -> society admin signs in and manages users, courses, and competitions.
+**Flow:** Super admin signs in and creates society (name + first society admin + shared player password) -> society admin signs in, shares the **player registration link** from Society players (or adds players manually), then manages courses and competitions.
 
 **CLI:** `flask --app run create-society-admin email@example.com 'Pass1!word' SOCIETY_ID` adds another society admin to an existing society.
 
@@ -72,14 +72,16 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 ### Roles
 
 - **Super admin** (`/super-admin/login`): create societies and first society admin, lock/unlock societies, manage super admins, manage own password.
-- **Society admin** (`/admin/login`): manage society players (create, CSV import, archive/restore, permanent delete, reset to shared password), shared player password, competitions, courses, and results/PDF.
-- **Players** (`/login`): sign in with **email + personal password** or **email + society shared player password**, then can submit scores for competitions they are entered in.
+- **Society admin** (`/admin/login`): manage society players (create, self-registration link, CSV import, archive/restore, permanent delete, reset to shared password), shared player password, competitions, courses, and results/PDF.
+- **Players** (`/login`): sign in with **email + personal password** or **email + society shared player password**, then can submit scores for competitions they are entered in. New players can also **self-register** via a society-specific link (`/register/<token>`).
 
 ### Society players and competition entries
 
 - Players are created at **society** level (`/admin/users`).
+- **Player registration link:** each society has a unique token-based URL (e.g. `/register/NlF2GM5y5G6eFEZV2c1Yr74z…`) shown on the Society players page. Share this link so players can sign up themselves; the URL does not include the society name. Use **Generate new link** to rotate the token if a link is leaked. Registration is disabled while the society is locked.
+- **Self-register:** players open the link, enter email, and optionally a personal password (blank uses the shared player password). They are signed in after a successful signup. Archived players in the same society can re-register with the same email to restore their account.
 - **Shared player password:** set once per society. Players can sign in with email + shared password or a personal password.
-- **Create player:** email required; personal password optional — if left blank, the new player gets the shared player password (set the shared password first).
+- **Create player (admin):** email required; personal password optional — if left blank, the new player gets the shared player password (set the shared password first).
 - **CSV import (society players):** bulk-create from `email` and optional `password` columns. Blank password uses the shared player password. Archived players in the CSV are restored.
 - **Reset to shared password:** on an active player, resets their personal password to match the society shared password.
 - **Archive / restore:** mark deleted hides a player from active lists and new competition add/import; restore brings them back.
@@ -241,6 +243,7 @@ docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instan
 | `app/scoring_helpers.py` | Leaderboards and scorecard helpers |
 | `app/super_admin_routes.py` / `admin_routes.py` / `user_routes.py` / `main_routes.py` | HTTP routes |
 | `app/csv_players.py` / `app/csv_helpers.py` | CSV parsing (competition roster and society players) |
+| `app/player_helpers.py` | Shared player password assignment (admin create, CSV import, self-registration) |
 | `app/db_migrate.py` | SQLite upgrades from earlier schema versions |
 | `templates/` | Jinja templates |
 | `static/style.css` | Theme/layout |

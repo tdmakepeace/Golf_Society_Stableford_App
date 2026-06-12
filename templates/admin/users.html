@@ -16,6 +16,18 @@
 
   {% if not popup %}
   <section class="card">
+    <h2>Player registration link</h2>
+    <p class="muted">Share this link so players can sign up to <strong>{{ society.name }}</strong> themselves. The link is unique to your society and does not reveal its name in the URL.</p>
+    <div class="register-link-row">
+      <input type="text" id="register-link-url" class="register-link-input" value="{{ register_url }}" readonly>
+      <button type="button" class="btn secondary small" id="register-link-copy">Copy link</button>
+    </div>
+    <form method="post" action="{{ url_for('admin.society_regenerate_register_token') }}" class="inline-form" onsubmit="return confirm('Generate a new registration link? The current link will stop working.');">
+      <button type="submit" class="btn secondary small">Generate new link</button>
+    </form>
+  </section>
+
+  <section class="card">
     <h2>Shared player password</h2>
     <p class="muted">Used for first login across this society. Players can then set their own password in player account. Blank passwords on create or CSV import use this shared password.</p>
     <form method="post" action="{{ url_for('admin.society_set_player_password') }}" class="form">
@@ -98,6 +110,25 @@
       <p class="muted">No archived players.</p>
     {% endif %}
   </section>
+  {% endif %}
+
+  {% if not popup %}
+  <script>
+    (function () {
+      var btn = document.getElementById("register-link-copy");
+      var input = document.getElementById("register-link-url");
+      if (!btn || !input) return;
+      btn.addEventListener("click", function () {
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+        navigator.clipboard.writeText(input.value).then(function () {
+          var label = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(function () { btn.textContent = label; }, 2000);
+        });
+      });
+    })();
+  </script>
   {% endif %}
 
   {% if popup and player_created %}

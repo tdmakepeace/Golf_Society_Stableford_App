@@ -77,7 +77,7 @@ def society_new():
             flash("That email is already used by a society admin.", "error")
             return render_template("super_admin/society_new.html")
 
-        soc = Society(name=name)
+        soc = Society(name=name, register_token=Society.generate_register_token())
         soc.set_player_password(player_password)
         db.session.add(soc)
         db.session.flush()
