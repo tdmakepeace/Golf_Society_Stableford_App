@@ -5,8 +5,8 @@ def strokes_on_hole(playing_handicap: int, stroke_index: int) -> int:
     """
     Extra strokes for this hole from playing handicap.
 
-    Stored stroke index matches the scorecard: **18 = hardest hole** (first spare
-    shot from the remainder), **1 = easiest**.
+    Stored stroke index matches the scorecard: **1 = hardest hole** (first spare
+    shot from the remainder), **18 = easiest**.
 
     When ``playing_handicap`` is a multiple of 18 (e.g. 18, 36, 54), there is no
     remainder: every hole gets the same ``base`` strokes and SI does not change
@@ -18,7 +18,7 @@ def strokes_on_hole(playing_handicap: int, stroke_index: int) -> int:
     remainder = playing_handicap % 18
     if remainder == 0:
         return base
-    return base + (1 if stroke_index >= 19 - remainder else 0)
+    return base + (1 if stroke_index <= remainder else 0)
 
 
 def stableford_points_for_hole(par: int, gross: int, strokes_received: int) -> int:

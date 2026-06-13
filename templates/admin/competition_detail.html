@@ -48,7 +48,7 @@
       <p class="muted">Unlock the competition to add or update players.</p>
     {% else %}
       <p class="muted">Enter a society player email not already in this competition. If handicap is left blank, it copies from their previous event in this society.</p>
-      <p class="muted small">Playing handicap that is a multiple of 18 (18, 36, 54) gives <strong>one full set per hole</strong> — every hole shows the same HCP shots and stroke index only matters for scores above that. Use 17, 20, etc. to see spare shots follow stroke index (18 = hardest first).</p>
+      <p class="muted small">Playing handicap that is a multiple of 18 (18, 36, 54) gives <strong>one full set per hole</strong> — every hole shows the same HCP shots and stroke index only matters for scores above that. Use 17, 20, etc. to see spare shots follow stroke index (1 = hardest first).</p>
       <form method="post" action="{{ url_for('admin.competition_add_player', comp_id=competition.id) }}" class="form inline-grid">
         <label>Email
           <input type="email" name="email" list="society-player-emails" required placeholder="player@example.com" autocomplete="off">
@@ -82,24 +82,27 @@
     {% if players %}
       <table class="data">
         <thead>
-          <tr><th>Email</th><th>Playing HCP</th>{% if not competition.locked %}<th>Actions</th>{% endif %}</tr>
+          <tr><th>Email</th><th>Playing HCP</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {% for p in players %}
             <tr>
               <td>{{ p.user.email }}</td>
               <td>{{ p.playing_handicap }}</td>
-              {% if not competition.locked %}
               <td class="actions">
+                {% if not competition.locked %}
                 <form method="post" action="{{ url_for('admin.competition_update_player_handicap', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form">
                   <input type="number" name="playing_handicap" min="0" max="54" value="{{ p.playing_handicap }}" required aria-label="Playing handicap for {{ p.user.email }}">
                   <button type="submit" class="btn secondary small">Save HCP</button>
                 </form>
+                {% endif %}
+                <a class="btn secondary small" href="{{ url_for('admin.competition_player_scores', comp_id=competition.id, user_id=p.user_id) }}">Enter scores</a>
+                {% if not competition.locked %}
                 <form method="post" action="{{ url_for('admin.competition_remove_player', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form" onsubmit="return confirm('Remove {{ p.user.email }} from this competition? Their scores for this event will be deleted.');">
                   <button type="submit" class="btn danger small">Remove</button>
                 </form>
+                {% endif %}
               </td>
-              {% endif %}
             </tr>
           {% endfor %}
         </tbody>

@@ -38,7 +38,7 @@ PNG files live under [`docs/screenshots/`](docs/screenshots/) (see [`docs/screen
 
 How stroke index interacts with playing handicap in code (matches the course editor help text):
 
-![Stroke index: SI 18 hardest; remainder shots on highest SI first](docs/images/stroke-index-convention.svg)
+![Stroke index: SI 1 hardest; remainder shots on lowest SI first](docs/images/stroke-index-convention.svg)
 
 ### Full-page background (optional)
 
@@ -72,7 +72,7 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 ### Roles
 
 - **Super admin** (`/super-admin/login`): create societies and first society admin, lock/unlock societies, manage super admins, manage own password.
-- **Society admin** (`/admin/login`): manage society players (create, self-registration link, CSV import, archive/restore, permanent delete, reset to shared password), shared player password, competitions, courses, and results/PDF.
+- **Society admin** (`/admin/login`): manage society players (create, self-registration link, CSV import, archive/restore, permanent delete, reset to shared password), shared player password, competitions, courses, results/PDF, and enter scores on behalf of players.
 - **Players** (`/login`): sign in with **email + personal password** or **email + society shared player password**, then can submit scores for competitions they are entered in. New players can also **self-register** via a society-specific link (`/register/<token>`).
 
 ### Society players and competition entries
@@ -92,7 +92,8 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 
 - **Competition handicap is event-specific** and stored per competition entry.
 - **Handicap copy-forward:** when adding a player and leaving handicap blank, the app copies their handicap from their most recent previous competition in that society.
-- **Lock competition:** while locked, players cannot change scores; roster changes/import/handicap edits/removals are blocked.
+- **Lock competition:** while locked, players cannot change scores; roster changes, import, handicap edits, and removals are blocked. Society admins can still open **Enter scores** for any player in the event.
+- **Enter scores (admin):** on the competition **Players** table, use **Enter scores** next to **Save HCP** to open that player’s scorecard and submit or update gross strokes hole by hole (works even when the competition is locked).
 - **Remove player from competition:** removes that player only from the event and deletes their scores for that event.
 
 ### Stableford points (per hole)
@@ -103,9 +104,9 @@ Net strokes for a hole = **gross - handicap strokes on that hole**.
 
 1. `base = playing_handicap // 18` -> every hole receives `base`.
 2. `remainder = playing_handicap % 18`.
-3. If `remainder > 0`, each hole gets one extra on holes where **stroke index >= 19 - remainder**.
+3. If `remainder > 0`, each hole gets one extra on holes where **stroke index <= remainder**.
 
-In this app, **SI 18 is hardest** and **SI 1 easiest**.
+In this app, **SI 1 is hardest** and **SI 18 easiest**.
 
 Points vs par:
 
@@ -125,7 +126,7 @@ Points vs par:
 - **New course:** enter name and postcode, then either fill the hole table manually or select a CSV with columns **`hole`**, **`par`**, and **`si`** (18 rows). The CSV fills the table in the browser; you can edit values before saving.
 - Hole constraints:
   - Par: `3..6`
-  - Stroke index: `1..18`, unique per course
+  - Stroke index: `1..18`, unique per course (**1 = hardest**, **18 = easiest**, matching a standard UK scorecard)
 - Course deletion allowed only when unused by competitions.
 
 ### UI

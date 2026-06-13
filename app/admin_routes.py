@@ -10,7 +10,7 @@ from .csv_players import iter_players_from_csv
 from .decorators import admin_required
 from .models import Admin, Competition, CompetitionPlayer, Course, Hole, Score, Society, User
 from .player_helpers import apply_user_password
-from .scoring_helpers import competition_leaderboard
+from .scoring_helpers import competition_leaderboard, player_result, save_competition_scores
 from .validators import (
     validate_email_address,
     validate_competition_password,
@@ -414,6 +414,58 @@ def competition_update_player_handicap(comp_id: int, user_id: int):
     db.session.commit()
     flash(f"Updated handicap for {entry.user.email}.", "success")
     return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+
+@bp.route("/competitions/<int:comp_id>/players/<int:user_id>/scores", methods=["GET", "POST"])
+@admin_required
+def competition_player_scores(comp_id: int, user_id: int):
+    comp = Competition.query.get_or_404(comp_id)
+    if comp.admin_id != current_user.id:
+        flash("Not your competition.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    entry = CompetitionPlayer.query.filter_by(
+        competition_id=comp.id, user_id=user_id
+    ).first()
+    if not entry:
+        flash("That player is not in this competition.", "error")
+        return redirect(url_for("admin.competition_detail", comp_id=comp.id))
+
+    user = entry.user
+    holes = (
+        Hole.query.filter_by(course_id=comp.course_id)
+        .order_by(Hole.hole_number)
+        .all()
+    )
+
+    if request.method == "POST":
+        err = save_competition_scores(comp, user, holes, request.form)
+        if err:
+            flash(err, "error")
+            return redirect(
+                url_for("admin.competition_player_scores", comp_id=comp.id, user_id=user_id)
+            )
+        db.session.commit()
+        flash(f"Scores saved for {user.email}.", "success")
+        return redirect(
+            url_for("admin.competition_player_scores", comp_id=comp.id, user_id=user_id)
+        )
+
+    pr = player_result(comp, user)
+    phc = pr["playing_handicap"]
+    si_flat = phc > 0 and phc % 18 == 0
+    return render_template(
+        "admin/player_scorecard.html",
+        competition=comp,
+        player=user,
+        handicap_splits_evenly_by_18=si_flat,
+        rows=pr["rows"],
+        total_points=pr["total_points"],
+        playing_handicap=pr["playing_handicap"],
+        course_par_total=pr["course_par_total"],
+        gross_total=pr["gross_total"],
+        target_gross_total=pr["target_gross_total"],
+    )
 
 
 @bp.route("/competitions/<int:comp_id>/locked", methods=["POST"])

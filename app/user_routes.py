@@ -5,9 +5,9 @@ from flask_login import current_user, login_user, logout_user
 
 from . import db
 from .decorators import user_required
-from .models import Competition, CompetitionPlayer, Hole, Score, Society, User
+from .models import Competition, CompetitionPlayer, Hole, Society, User
 from .player_helpers import apply_user_password
-from .scoring_helpers import player_result
+from .scoring_helpers import player_result, save_competition_scores
 from .validators import validate_email_address, validate_password
 
 PLAYER_COMPETITION_IDS = "player_competition_ids"
@@ -170,40 +170,10 @@ def competition_scorecard(comp_id: int):
             flash("This competition is locked. Scores cannot be changed.", "error")
             return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
 
-        for h in holes:
-            raw = request.form.get(f"strokes_{h.hole_number}", "").strip()
-            if raw == "":
-                Score.query.filter_by(
-                    competition_id=comp.id,
-                    user_id=current_user.id,
-                    hole_number=h.hole_number,
-                ).delete(synchronize_session=False)
-                continue
-            try:
-                strokes = int(raw)
-            except ValueError:
-                flash(f"Hole {h.hole_number}: invalid strokes.", "error")
-                return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
-            if strokes < 1 or strokes > 20:
-                flash(f"Hole {h.hole_number}: strokes must be 1–20.", "error")
-                return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
-
-            score = Score.query.filter_by(
-                competition_id=comp.id,
-                user_id=current_user.id,
-                hole_number=h.hole_number,
-            ).first()
-            if score:
-                score.gross_strokes = strokes
-            else:
-                db.session.add(
-                    Score(
-                        competition_id=comp.id,
-                        user_id=current_user.id,
-                        hole_number=h.hole_number,
-                        gross_strokes=strokes,
-                    )
-                )
+        err = save_competition_scores(comp, current_user, holes, request.form)
+        if err:
+            flash(err, "error")
+            return redirect(url_for("user.competition_scorecard", comp_id=comp.id))
         db.session.commit()
         flash("Scores saved.", "success")
         return redirect(url_for("user.competition_scorecard", comp_id=comp.id))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from . import db
 from .models import Competition, CompetitionPlayer, Hole, Score, User
 from .stableford import strokes_on_hole, total_stableford
 
@@ -11,6 +12,47 @@ def course_hole_tuples(course) -> list[tuple[int, int, int]]:
         .all()
     )
     return [(h.hole_number, h.par, h.stroke_index) for h in holes]
+
+
+def save_competition_scores(
+    comp: Competition, user: User, holes: list, form_data
+) -> str | None:
+    """
+    Persist gross scores from a form mapping (hole inputs as strokes_N).
+    Returns an error message, or None on success (caller should commit).
+    """
+    for h in holes:
+        raw = form_data.get(f"strokes_{h.hole_number}", "").strip()
+        if raw == "":
+            Score.query.filter_by(
+                competition_id=comp.id,
+                user_id=user.id,
+                hole_number=h.hole_number,
+            ).delete(synchronize_session=False)
+            continue
+        try:
+            strokes = int(raw)
+        except ValueError:
+            return f"Hole {h.hole_number}: invalid strokes."
+        if strokes < 1 or strokes > 20:
+            return f"Hole {h.hole_number}: strokes must be 1–20."
+        score = Score.query.filter_by(
+            competition_id=comp.id,
+            user_id=user.id,
+            hole_number=h.hole_number,
+        ).first()
+        if score:
+            score.gross_strokes = strokes
+        else:
+            db.session.add(
+                Score(
+                    competition_id=comp.id,
+                    user_id=user.id,
+                    hole_number=h.hole_number,
+                    gross_strokes=strokes,
+                )
+            )
+    return None
 
 
 def player_result(comp: Competition, user: User) -> dict:
