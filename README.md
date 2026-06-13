@@ -95,6 +95,7 @@ Override with `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 - **Lock competition:** while locked, players cannot change scores; roster changes, import, handicap edits, and removals are blocked. Society admins can still open **Enter scores** for any player in the event.
 - **Enter scores (admin):** on the competition **Players** table, use **Enter scores** next to **Save HCP** to open that player’s scorecard and submit or update gross strokes hole by hole (works even when the competition is locked).
 - **Remove player from competition:** removes that player only from the event and deletes their scores for that event.
+- **Results PDF:** from the competition or results page, download an **A4 portrait** PDF (leaderboard, per-player hole scores, course par/SI). Layout uses compact fonts and fixed column widths so 18-hole tables fit the page. Requires `xhtml2pdf` from `requirements.txt` (included when you `pip install -r requirements.txt` locally).
 
 ### Stableford points (per hole)
 
@@ -241,7 +242,8 @@ docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instan
 | `app/__init__.py` | App factory, session/login setup, SQLite migration hook, CLI |
 | `app/models.py` | Super admins, societies, admins, users, courses, holes, competitions, scores |
 | `app/stableford.py` | Handicap/stableford math |
-| `app/scoring_helpers.py` | Leaderboards and scorecard helpers |
+| `app/scoring_helpers.py` | Leaderboards, scorecard helpers, and score save logic |
+| `app/pdf_export.py` | HTML → PDF for competition results export |
 | `app/super_admin_routes.py` / `admin_routes.py` / `user_routes.py` / `main_routes.py` | HTTP routes |
 | `app/csv_players.py` / `app/csv_helpers.py` | CSV parsing (competition roster and society players) |
 | `app/player_helpers.py` | Shared player password assignment (admin create, CSV import, self-registration) |

@@ -4,54 +4,58 @@
   <meta charset="UTF-8">
   <title>{{ competition.name }} — Results</title>
   <style>
-    @page { size: A4 landscape; margin: 10mm; }
-    * { box-sizing: border-box; }
+    @page { size: A4 portrait; margin: 8mm; }
     body {
       font-family: Helvetica, Arial, sans-serif;
-      font-size: 7pt;
+      font-size: 6pt;
       color: #111;
       margin: 0;
-      max-width: 100%;
     }
-    h1 { font-size: 12pt; margin: 0 0 3pt; }
-    h2 { font-size: 9pt; margin: 8pt 0 4pt; page-break-after: avoid; }
-    p { margin: 0 0 6pt; }
+    h1 { font-size: 11pt; margin: 0 0 2pt; }
+    h2 { font-size: 8pt; margin: 6pt 0 3pt; page-break-after: avoid; }
+    p { margin: 0 0 4pt; }
     table {
       width: 100%;
-      max-width: 100%;
       table-layout: fixed;
       border-collapse: collapse;
-      margin-bottom: 6pt;
+      margin-bottom: 4pt;
     }
     th, td {
       border: 1px solid #666;
-      padding: 1pt 2pt;
+      padding: 0.5pt 1pt;
       text-align: center;
-      overflow: hidden;
       word-wrap: break-word;
     }
     th { background: #e8eef5; font-weight: bold; }
-    td.player, th.player {
+    .score-table td.player, .score-table th.player {
       text-align: left;
-      width: 10%;
+      width: 8%;
     }
-    .score-table th:not(.player),
-    .score-table td:not(.player) {
-      width: 4.72%;
+    .leaderboard-table th.pos, .leaderboard-table td.pos { width: 10%; }
+    .leaderboard-table th.player, .leaderboard-table td.player {
+      text-align: left;
+      width: 30%;
     }
-    .score-table th:last-child,
-    .score-table td:last-child {
-      width: 5%;
+    .leaderboard-table th.hcp, .leaderboard-table td.hcp { width: 10%; }
+    .leaderboard-table th.gross, .leaderboard-table td.gross { width: 10%; }
+    .leaderboard-table th.points, .leaderboard-table td.points { width: 10%; }
+    .score-table th.hole,
+    .score-table td.hole {
+      width: 4.89%;
+    }
+    .score-table th.total,
+    .score-table td.total {
+      width: 4%;
     }
     .section { page-break-inside: avoid; }
-    .player-block { margin-bottom: 8pt; page-break-inside: avoid; }
+    .player-block { margin-bottom: 6pt; page-break-inside: avoid; }
     .player-block h3 {
-      font-size: 8pt;
-      margin: 0 0 2pt;
+      font-size: 7pt;
+      margin: 0 0 1pt;
       text-align: left;
       word-wrap: break-word;
     }
-    .muted { color: #444; font-size: 6pt; }
+    .muted { color: #444; font-size: 5pt; }
   </style>
 </head>
 <body>
@@ -60,24 +64,24 @@
 
   <div class="section">
     <h2>Leaderboard (Stableford points)</h2>
-    <table>
+    <table class="leaderboard-table">
       <thead>
         <tr>
-          <th>Pos</th>
+          <th class="pos">Pos</th>
           <th class="player">Player</th>
-          <th>HCP</th>
-          <th>Gross</th>
-          <th>Points</th>
+          <th class="hcp">HCP</th>
+          <th class="gross">Gross</th>
+          <th class="points">Points</th>
         </tr>
       </thead>
       <tbody>
         {% for row in leaderboard %}
           <tr>
-            <td>{{ loop.index }}</td>
+            <td class="pos">{{ loop.index }}</td>
             <td class="player">{{ row.email }}</td>
-            <td>{{ row.playing_handicap }}</td>
-            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
-            <td><strong>{{ row.total_points }}</strong></td>
+            <td class="hcp">{{ row.playing_handicap }}</td>
+            <td class="gross">{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td class="points"><strong>{{ row.total_points }}</strong></td>
           </tr>
         {% endfor %}
       </tbody>
@@ -93,32 +97,32 @@
           <tr>
             <th class="player"></th>
             {% for h in holes %}
-              <th>{{ h.hole_number }}</th>
+              <th class="hole">{{ h.hole_number }}</th>
             {% endfor %}
-            <th>Out</th>
+            <th class="total">Out</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <th class="player" scope="row">Gross</th>
             {% for h in holes %}
-              <td>{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
+              <td class="hole">{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
             {% endfor %}
-            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td class="total">{{ row.gross_total if row.gross_total is not none else '—' }}</td>
           </tr>
           <tr>
             <th class="player" scope="row">Par</th>
             {% for h in holes %}
-              <td>{{ row.user_par_by_hole[h.hole_number] }}</td>
+              <td class="hole">{{ row.user_par_by_hole[h.hole_number] }}</td>
             {% endfor %}
-            <td>{{ row.user_par_total }}</td>
+            <td class="total">{{ row.user_par_total }}</td>
           </tr>
           <tr>
             <th class="player" scope="row">Pts</th>
             {% for h in holes %}
-              <td>{{ row.hole_points.get(h.hole_number, 0) }}</td>
+              <td class="hole">{{ row.hole_points.get(h.hole_number, 0) }}</td>
             {% endfor %}
-            <td><strong>{{ row.total_points }}</strong></td>
+            <td class="total"><strong>{{ row.total_points }}</strong></td>
           </tr>
         </tbody>
       </table>
@@ -132,25 +136,25 @@
         <tr>
           <th class="player"></th>
           {% for h in holes %}
-            <th>{{ h.hole_number }}</th>
+            <th class="hole">{{ h.hole_number }}</th>
           {% endfor %}
-          <th>Total</th>
+          <th class="total">Total</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <th class="player" scope="row">Par</th>
           {% for h in holes %}
-            <td>{{ h.par }}</td>
+            <td class="hole">{{ h.par }}</td>
           {% endfor %}
-          <td><strong>{{ course_par_total }}</strong></td>
+          <td class="total"><strong>{{ course_par_total }}</strong></td>
         </tr>
         <tr>
           <th class="player" scope="row">SI</th>
           {% for h in holes %}
-            <td>{{ h.stroke_index }}</td>
+            <td class="hole">{{ h.stroke_index }}</td>
           {% endfor %}
-          <td>—</td>
+          <td class="total">—</td>
         </tr>
       </tbody>
     </table>
