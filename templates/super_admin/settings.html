@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Super admin · Site settings{% endblock %}
+{% block home_href %}{{ url_for('super_admin.dashboard') }}{% endblock %}
+{% block nav %}{% include "super_admin/_nav.html" %}{% endblock %}
+{% block body %}
+  <h1>Site settings</h1>
+
+  <section class="card">
+    <h2>Player registration link URL</h2>
+    <p class="muted">Society admins copy player registration links from the Society players page. Set the public base URL here when the app is accessed at a fixed domain (for example behind a reverse proxy). Leave blank to build links from whatever host each admin uses in their browser.</p>
+    <p class="muted">Enter the scheme and host only — no trailing slash. Include a path prefix if the app is mounted below the domain root (e.g. <code>https://golf.example.com/app</code>).</p>
+    <p class="muted">Example link format: <code>{{ example_register_url }}</code></p>
+    <form method="post" class="form">
+      <label>Registration base URL
+        <input type="url" name="registration_base_url" value="{{ registration_base_url }}" placeholder="https://golf.example.com" autocomplete="off" inputmode="url">
+      </label>
+      <button type="submit" class="btn primary">Save</button>
+    </form>
+  </section>
+{% endblock %}

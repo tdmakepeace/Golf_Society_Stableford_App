@@ -20,7 +20,7 @@
         {% for row in leaderboard %}
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ row.email }}</td>
+            <td>{{ row.display_label }}</td>
             <td>{{ row.playing_handicap }}</td>
             <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
             <td><strong>{{ row.total_points }}</strong></td>
@@ -50,9 +50,9 @@
             <tr class="result-score-row">
               <td class="result-name-cell">
                 <details class="result-row-details" name="par-hole-detail">
-                  <summary class="result-row-summary" aria-label="Par and points per hole for {{ row.email }}">
+                  <summary class="result-row-summary" aria-label="Par and points per hole for {{ row.display_label }}">
                     <span class="result-expand-chevron" aria-hidden="true">▶</span>
-                    <span class="result-email">{{ row.email }}</span>
+                    <span class="result-email">{{ row.display_label }}</span>
                   </summary>
                   <div class="result-flyout">
                     <table class="data compact result-player-detail">

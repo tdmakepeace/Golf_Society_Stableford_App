@@ -225,6 +225,13 @@ def run_sqlite_legacy_migrations() -> None:
                         "ALTER TABLE users ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
                     )
                 )
+            cols_users = _cols("users")
+            if "friendly_name" not in cols_users:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users ADD COLUMN friendly_name VARCHAR(120)"
+                    )
+                )
 
             cols_users2 = _cols("users")
             if "society_id" in cols_users2:
@@ -245,3 +252,12 @@ def run_sqlite_legacy_migrations() -> None:
                         "WHERE society_id IS NULL"
                     )
                 )
+
+        if not insp.has_table("app_settings"):
+            conn.execute(
+                text(
+                    "CREATE TABLE app_settings ("
+                    "key VARCHAR(64) NOT NULL PRIMARY KEY, "
+                    "value TEXT)"
+                )
+            )

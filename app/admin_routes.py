@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from sqlalchemy import or_
 from flask_login import current_user, login_user, logout_user
@@ -11,7 +13,9 @@ from .decorators import admin_required
 from .models import Admin, Competition, CompetitionPlayer, Course, Hole, Score, Society, User
 from .player_helpers import apply_user_password
 from .scoring_helpers import competition_leaderboard, player_result, save_competition_scores
+from .site_settings import player_registration_url
 from .validators import (
+    normalize_friendly_name,
     validate_email_address,
     validate_competition_password,
     validate_password,
@@ -109,11 +113,12 @@ def dashboard():
         society=current_user.society,
         courses=courses,
         course_search=course_search,
+        course_total_count=_courses_query("").count(),
         competitions=comps,
     )
 
 
-def _parse_course_holes_from_form(form):
+def _parse_course_holes_from_form(form, *, require_unique_si: bool = True):
     """Return (pars, sis) lists or raise ValueError."""
     pars = []
     sis = []
@@ -129,9 +134,72 @@ def _parse_course_holes_from_form(form):
             raise ValueError(f"Hole {i}: stroke index must be 1–18.")
         pars.append(p)
         sis.append(si)
-    if len(set(sis)) != 18:
-        raise ValueError("Stroke indexes must be unique 1–18 across all holes.")
+    if require_unique_si and len(set(sis)) != 18:
+        dup_holes = _duplicate_si_hole_numbers(sis)
+        holes_str = ", ".join(str(h) for h in sorted(dup_holes))
+        raise ValueError(
+            f"Stroke indexes must be unique 1–18 across all holes. "
+            f"Duplicate values highlighted on hole(s): {holes_str}."
+        )
     return pars, sis
+
+
+def _duplicate_si_hole_numbers(sis: list[int]) -> set[int]:
+    """Return 1-based hole numbers whose stroke index appears more than once."""
+    by_si: dict[int, list[int]] = {}
+    for i, si in enumerate(sis):
+        by_si.setdefault(si, []).append(i + 1)
+    dup_holes: set[int] = set()
+    for hole_nums in by_si.values():
+        if len(hole_nums) > 1:
+            dup_holes.update(hole_nums)
+    return dup_holes
+
+
+def _holes_from_form_for_display(form) -> list[SimpleNamespace]:
+    """Build hole rows from submitted form values for re-rendering after validation errors."""
+    holes: list[SimpleNamespace] = []
+    for i in range(1, 19):
+        par_raw = form.get(f"par_{i}", "")
+        si_raw = form.get(f"si_{i}", "")
+        try:
+            par = int(par_raw)
+        except (TypeError, ValueError):
+            par = 4
+        try:
+            si = int(si_raw)
+        except (TypeError, ValueError):
+            si = i
+        holes.append(
+            SimpleNamespace(hole_number=i, par=par, stroke_index=si)
+        )
+    return holes
+
+
+def _duplicate_si_holes_from_form(form) -> set[int]:
+    try:
+        _, sis = _parse_course_holes_from_form(form, require_unique_si=False)
+    except ValueError:
+        return set()
+    return _duplicate_si_hole_numbers(sis)
+
+
+def _course_form_error(
+    course,
+    *,
+    form_name: str,
+    form_postcode: str,
+    form,
+):
+    form_holes = _holes_from_form_for_display(form)
+    return render_template(
+        "admin/course_form.html",
+        course=course,
+        holes=form_holes,
+        form_name=form_name,
+        form_postcode=form_postcode,
+        duplicate_si_holes=_duplicate_si_holes_from_form(form),
+    )
 
 
 @bp.route("/courses/new", methods=["GET", "POST"])
@@ -142,18 +210,22 @@ def course_new():
         postcode = (request.form.get("postcode") or "").strip()
         if not name:
             flash("Course name is required.", "error")
-            return render_template("admin/course_form.html", course=None, holes=[])
+            return _course_form_error(
+                None,
+                form_name=name,
+                form_postcode=postcode,
+                form=request.form,
+            )
 
         try:
             pars, sis = _parse_course_holes_from_form(request.form)
         except ValueError as e:
             flash(str(e), "error")
-            return render_template(
-                "admin/course_form.html",
-                course=None,
-                holes=[],
+            return _course_form_error(
+                None,
                 form_name=name,
                 form_postcode=postcode,
+                form=request.form,
             )
 
         c = Course(
@@ -191,29 +263,23 @@ def course_edit(course_id: int):
         postcode = (request.form.get("postcode") or "").strip()
         if not name:
             flash("Course name is required.", "error")
-            return render_template("admin/course_form.html", course=c, holes=holes)
+            return _course_form_error(
+                c,
+                form_name=name,
+                form_postcode=postcode,
+                form=request.form,
+            )
 
-        pars = []
-        sis = []
-        for i in range(1, 19):
-            try:
-                p = int(request.form.get(f"par_{i}", "4"))
-                si = int(request.form.get(f"si_{i}", str(i)))
-            except (TypeError, ValueError):
-                flash("Invalid par or stroke index.", "error")
-                return render_template("admin/course_form.html", course=c, holes=holes)
-            if p < 3 or p > 6:
-                flash(f"Hole {i}: par must be between 3 and 6.", "error")
-                return render_template("admin/course_form.html", course=c, holes=holes)
-            if si < 1 or si > 18:
-                flash(f"Hole {i}: stroke index must be 1–18.", "error")
-                return render_template("admin/course_form.html", course=c, holes=holes)
-            pars.append(p)
-            sis.append(si)
-
-        if len(set(sis)) != 18:
-            flash("Stroke indexes must be unique 1–18 across all holes.", "error")
-            return render_template("admin/course_form.html", course=c, holes=holes)
+        try:
+            pars, sis = _parse_course_holes_from_form(request.form)
+        except ValueError as e:
+            flash(str(e), "error")
+            return _course_form_error(
+                c,
+                form_name=name,
+                form_postcode=postcode,
+                form=request.form,
+            )
 
         c.name = name
         c.postcode = postcode
@@ -412,7 +478,7 @@ def competition_update_player_handicap(comp_id: int, user_id: int):
 
     entry.playing_handicap = playing_hc
     db.session.commit()
-    flash(f"Updated handicap for {entry.user.email}.", "success")
+    flash(f"Updated handicap for {entry.user.display_label}.", "success")
     return redirect(url_for("admin.competition_detail", comp_id=comp.id))
 
 
@@ -446,7 +512,7 @@ def competition_player_scores(comp_id: int, user_id: int):
                 url_for("admin.competition_player_scores", comp_id=comp.id, user_id=user_id)
             )
         db.session.commit()
-        flash(f"Scores saved for {user.email}.", "success")
+        flash(f"Scores saved for {user.display_label}.", "success")
         return redirect(
             url_for("admin.competition_player_scores", comp_id=comp.id, user_id=user_id)
         )
@@ -826,9 +892,7 @@ def society_users():
         users=users,
         archived_users=archived_users,
         society=society,
-        register_url=url_for(
-            "user.register", token=society.register_token, _external=True
-        ),
+        register_url=player_registration_url(society.register_token),
         popup=_is_popup_request(),
         player_created=request.args.get("created") == "1",
     )
@@ -852,9 +916,11 @@ def society_regenerate_register_token():
 def society_user_new():
     email_raw = request.form.get("email", "")
     password = request.form.get("password", "")
+    friendly_name_raw = request.form.get("friendly_name", "")
     popup = _is_popup_request()
     try:
         email = validate_email_address(email_raw)
+        friendly_name = normalize_friendly_name(friendly_name_raw)
     except ValueError as e:
         flash(str(e), "error")
         return redirect(url_for("admin.society_users", popup=1 if popup else None))
@@ -864,7 +930,11 @@ def society_user_new():
         flash("That email is already in use.", "error")
         return redirect(url_for("admin.society_users", popup=1 if popup else None))
 
-    user = User(email=email, society_id=current_user.society_id)
+    user = User(
+        email=email,
+        society_id=current_user.society_id,
+        friendly_name=friendly_name,
+    )
     try:
         apply_user_password(user, password, current_user.society)
     except ValueError as e:
@@ -906,12 +976,18 @@ def society_import_users():
     society = current_user.society
     created = 0
     restored = 0
+    updated = 0
     skipped: list[str] = []
-    for email_raw, password in rows:
+    for email_raw, password, friendly_name_raw in rows:
         try:
             email = validate_email_address(email_raw)
         except ValueError:
             skipped.append(f"invalid email {email_raw!r}")
+            continue
+        try:
+            friendly_name = normalize_friendly_name(friendly_name_raw)
+        except ValueError as e:
+            skipped.append(f"{email}: {e}")
             continue
 
         existing = User.query.filter_by(email=email).first()
@@ -920,9 +996,15 @@ def society_import_users():
                 skipped.append(f"{email}: email used by another society")
                 continue
             if not existing.is_deleted:
-                skipped.append(f"{email}: already an active player")
+                if friendly_name is not None:
+                    existing.friendly_name = friendly_name
+                    updated += 1
+                else:
+                    skipped.append(f"{email}: already an active player")
                 continue
             existing.is_deleted = False
+            if friendly_name is not None:
+                existing.friendly_name = friendly_name
             try:
                 apply_user_password(existing, password or "", society)
             except ValueError as e:
@@ -931,7 +1013,11 @@ def society_import_users():
             restored += 1
             continue
 
-        user = User(email=email, society_id=current_user.society_id)
+        user = User(
+            email=email,
+            society_id=current_user.society_id,
+            friendly_name=friendly_name,
+        )
         try:
             apply_user_password(user, password or "", society)
         except ValueError as e:
@@ -942,6 +1028,8 @@ def society_import_users():
 
     db.session.commit()
     msg = f"Import finished: {created} created"
+    if updated:
+        msg += f", {updated} friendly name(s) updated"
     if restored:
         msg += f", {restored} restored from archive"
     msg += ". Blank passwords use the shared player password."
@@ -950,6 +1038,24 @@ def society_import_users():
         if len(skipped) > 8:
             msg += "…"
     flash(msg, "success")
+    return redirect(url_for("admin.society_users"))
+
+
+@bp.route("/users/<int:user_id>/friendly-name", methods=["POST"])
+@admin_required
+def society_user_update_friendly_name(user_id: int):
+    user = User.query.get_or_404(user_id)
+    if user.society_id != current_user.society_id:
+        flash("That player is not in your society.", "error")
+        return redirect(url_for("admin.society_users"))
+    try:
+        user.friendly_name = normalize_friendly_name(request.form.get("friendly_name", ""))
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("admin.society_users"))
+
+    db.session.commit()
+    flash(f"Updated friendly name for {user.display_label}.", "success")
     return redirect(url_for("admin.society_users"))
 
 
@@ -970,7 +1076,7 @@ def society_user_reset_password(user_id: int):
     current_user.society.copy_shared_password_to_user(user)
     db.session.commit()
     flash(
-        f"{user.email}: personal password reset to the shared player password.",
+        f"{user.display_label}: personal password reset to the shared player password.",
         "success",
     )
     return redirect(url_for("admin.society_users"))
@@ -989,7 +1095,7 @@ def society_user_mark_deleted(user_id: int):
 
     user.is_deleted = True
     db.session.commit()
-    flash(f"{user.email} marked deleted.", "success")
+    flash(f"{user.display_label} marked deleted.", "success")
     return redirect(url_for("admin.society_users"))
 
 
@@ -1006,7 +1112,7 @@ def society_user_restore(user_id: int):
 
     user.is_deleted = False
     db.session.commit()
-    flash(f"{user.email} restored.", "success")
+    flash(f"{user.display_label} restored.", "success")
     return redirect(url_for("admin.society_users"))
 
 
@@ -1021,12 +1127,12 @@ def society_user_delete_permanent(user_id: int):
         flash("Mark the player deleted before permanently removing them.", "error")
         return redirect(url_for("admin.society_users"))
 
-    email = user.email
+    label = user.display_label
     Score.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     CompetitionPlayer.query.filter_by(user_id=user.id).delete(
         synchronize_session=False
     )
     db.session.delete(user)
     db.session.commit()
-    flash(f"{email} permanently deleted.", "success")
+    flash(f"{label} permanently deleted.", "success")
     return redirect(url_for("admin.society_users"))

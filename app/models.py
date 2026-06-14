@@ -99,6 +99,7 @@ class User(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    friendly_name = db.Column(db.String(120), nullable=True)
     password_hash = db.Column(db.String(256), nullable=False)
     society_id = db.Column(db.Integer, db.ForeignKey("societies.id"), nullable=False)
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)
@@ -117,6 +118,13 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def display_label(self) -> str:
+        name = (self.friendly_name or "").strip()
+        if name:
+            return f"{self.email} ({name})"
+        return self.email
 
 
 class Course(db.Model):
@@ -232,3 +240,29 @@ class Score(db.Model):
             "competition_id", "user_id", "hole_number", name="uq_score_hole"
         ),
     )
+
+
+class AppSetting(db.Model):
+    """App-wide key/value settings (super admin)."""
+
+    __tablename__ = "app_settings"
+
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.Text, nullable=True)
+
+    @staticmethod
+    def get_value(key: str) -> str | None:
+        row = db.session.get(AppSetting, key)
+        return row.value if row else None
+
+    @staticmethod
+    def set_value(key: str, value: str | None) -> None:
+        row = db.session.get(AppSetting, key)
+        if value is None:
+            if row is not None:
+                db.session.delete(row)
+            return
+        if row is None:
+            db.session.add(AppSetting(key=key, value=value))
+        else:
+            row.value = value

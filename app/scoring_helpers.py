@@ -138,6 +138,7 @@ def competition_leaderboard(comp: Competition) -> list[dict]:
             {
                 "user_id": user.id,
                 "email": user.email,
+                "display_label": user.display_label,
                 "playing_handicap": entry.playing_handicap,
                 "total_points": total_pts,
                 "gross_total": gross_total,

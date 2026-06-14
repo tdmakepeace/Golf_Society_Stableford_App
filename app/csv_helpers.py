@@ -15,10 +15,13 @@ def _norm(name: str) -> str:
     )
 
 
-def iter_society_users_from_csv(content: str) -> Iterator[tuple[str, str | None]]:
+def iter_society_users_from_csv(
+    content: str,
+) -> Iterator[tuple[str, str | None, str | None]]:
     """
-    Yield (email, password_or_none) from CSV text.
-    Accepts header aliases: email / e_mail / mail; password / pwd / pass.
+    Yield (email, password_or_none, friendly_name_or_none) from CSV text.
+    Accepts header aliases: email / e_mail / mail; password / pwd / pass;
+    friendly_name / friendly name / name / display_name.
     Empty password cell means use the society shared password.
     """
     reader = csv.DictReader(io.StringIO(content))
@@ -38,7 +41,15 @@ def iter_society_users_from_csv(content: str) -> Iterator[tuple[str, str | None]
         password = d.get("password") or d.get("pwd") or d.get("pass") or None
         if password == "":
             password = None
-        yield email, password
+        friendly_name = (
+            d.get("friendly_name")
+            or d.get("friendlyname")
+            or d.get("display_name")
+            or d.get("name")
+        )
+        if friendly_name == "":
+            friendly_name = None
+        yield email, password, friendly_name
 
 
 def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int]]:

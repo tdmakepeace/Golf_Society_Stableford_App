@@ -1,6 +1,7 @@
 <nav class="nav">
   <a class="nav-btn" href="{{ url_for('super_admin.dashboard') }}">Dashboard</a>
   <a class="nav-btn" href="{{ url_for('super_admin.society_new') }}">New society</a>
+  <a class="nav-btn" href="{{ url_for('super_admin.settings') }}">Site settings</a>
   <a class="nav-btn" href="{{ url_for('super_admin.super_admins_list') }}">Super admins</a>
   <a class="nav-btn" href="{{ url_for('super_admin.account') }}">My password</a>
   <span class="nav-user">{{ current_user.email }}</span>

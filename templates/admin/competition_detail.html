@@ -55,7 +55,7 @@
           {% if available_users %}
           <datalist id="society-player-emails">
             {% for u in available_users %}
-              <option value="{{ u.email }}"></option>
+              <option value="{{ u.email }}" label="{{ u.display_label }}"></option>
             {% endfor %}
           </datalist>
           {% endif %}
@@ -87,18 +87,18 @@
         <tbody>
           {% for p in players %}
             <tr>
-              <td>{{ p.user.email }}</td>
+              <td>{{ p.user.display_label }}</td>
               <td>{{ p.playing_handicap }}</td>
               <td class="actions">
                 {% if not competition.locked %}
                 <form method="post" action="{{ url_for('admin.competition_update_player_handicap', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form">
-                  <input type="number" name="playing_handicap" min="0" max="54" value="{{ p.playing_handicap }}" required aria-label="Playing handicap for {{ p.user.email }}">
+                  <input type="number" name="playing_handicap" min="0" max="54" value="{{ p.playing_handicap }}" required aria-label="Playing handicap for {{ p.user.display_label }}">
                   <button type="submit" class="btn secondary small">Save HCP</button>
                 </form>
                 {% endif %}
                 <a class="btn secondary small" href="{{ url_for('admin.competition_player_scores', comp_id=competition.id, user_id=p.user_id) }}">Enter scores</a>
                 {% if not competition.locked %}
-                <form method="post" action="{{ url_for('admin.competition_remove_player', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form" onsubmit="return confirm('Remove {{ p.user.email }} from this competition? Their scores for this event will be deleted.');">
+                <form method="post" action="{{ url_for('admin.competition_remove_player', comp_id=competition.id, user_id=p.user_id) }}" class="inline-form" onsubmit="return confirm('Remove {{ p.user.display_label }} from this competition? Their scores for this event will be deleted.');">
                   <button type="submit" class="btn danger small">Remove</button>
                 </form>
                 {% endif %}

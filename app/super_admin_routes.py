@@ -7,7 +7,12 @@ from . import db
 from .decorators import super_admin_required
 from .models import Admin, Society, SuperAdmin
 from .validators import validate_email_address, validate_password
-from .validators import validate_competition_password
+from .validators import validate_competition_password, normalize_registration_base_url
+from .site_settings import (
+    get_registration_base_url,
+    player_registration_url,
+    set_registration_base_url,
+)
 
 bp = Blueprint("super_admin", __name__, url_prefix="/super-admin")
 
@@ -177,6 +182,38 @@ def account():
         return redirect(url_for("super_admin.account"))
 
     return render_template("super_admin/account.html")
+
+
+@bp.route("/settings", methods=["GET", "POST"])
+@super_admin_required
+def settings():
+    if request.method == "POST":
+        try:
+            base_url = normalize_registration_base_url(
+                request.form.get("registration_base_url", "")
+            )
+        except ValueError as e:
+            flash(str(e), "error")
+            return render_template(
+                "super_admin/settings.html",
+                registration_base_url=get_registration_base_url() or "",
+            )
+        set_registration_base_url(base_url)
+        db.session.commit()
+        if base_url:
+            flash(f"Registration links will use {base_url}.", "success")
+        else:
+            flash(
+                "Registration links will use the host from each browser request.",
+                "success",
+            )
+        return redirect(url_for("super_admin.settings"))
+
+    return render_template(
+        "super_admin/settings.html",
+        registration_base_url=get_registration_base_url() or "",
+        example_register_url=player_registration_url("example-token"),
+    )
 
 
 @bp.route("/super-admins")

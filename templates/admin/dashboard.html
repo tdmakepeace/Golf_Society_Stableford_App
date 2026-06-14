@@ -6,63 +6,78 @@
   <h1>Dashboard</h1>
   <p class="bright">Society: <strong>{{ society.name }}</strong></p>
   <p class="bright">Courses are shared with every society admin. Competitions listed here are only ones you created.</p>
-  <section class="card">
-    <div class="card-heading-row">
-      <h2>Your competitions</h2>
-      <a class="btn primary small" href="{{ url_for('admin.competition_new') }}">New competition</a>
+
+  <div class="page-tabs" data-page-tabs data-default-tab="{{ 'courses' if course_search else 'competitions' }}">
+    <div class="page-tabs__list" role="tablist" aria-label="Dashboard sections">
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-competitions" aria-controls="tab-competitions" aria-selected="true">Competitions<span class="page-tabs__count">{{ competitions|length }}</span></button>
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-courses" aria-controls="tab-courses" aria-selected="false" tabindex="-1">Courses<span class="page-tabs__count">{{ course_total_count }}</span></button>
     </div>
-    {% if competitions %}
-      <ul class="list">
-        {% for comp in competitions %}
-          <li>
-            <a href="{{ url_for('admin.competition_detail', comp_id=comp.id) }}"><strong>{{ comp.name }}</strong></a>
-            — {{ comp.course.display_label }}
-            · <a href="{{ url_for('admin.competition_results', comp_id=comp.id) }}">Results</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">No competitions yet.</p>
-    {% endif %}
-  </section>
-  <section class="card">
-    <div class="card-heading-row">
-      <h2>Shared courses</h2>
-      <a class="btn primary small" href="{{ url_for('admin.course_new') }}">New course</a>
-    </div>
-    <form method="get" action="{{ url_for('admin.dashboard') }}" class="inline-form course-filter">
-      <label class="sr-only" for="course_q">Filter courses</label>
-      <input type="search" id="course_q" name="course_q" value="{{ course_search }}" placeholder="Filter by name or postcode…" maxlength="64">
-      <button type="submit" class="btn secondary small">Filter</button>
-      {% if course_search %}
-        <a class="btn secondary small" href="{{ url_for('admin.dashboard') }}">Clear</a>
-      {% endif %}
-    </form>
-    {% if courses %}
-      <ul class="list">
-        {% for c in courses %}
-          <li class="list-row">
-            <span>
-              <strong>{{ c.display_label }}</strong>
-              {% if c.competitions.count() > 0 %}
-                <span class="muted">— in use by {{ c.competitions.count() }} competition(s)</span>
-              {% endif %}
-            </span>
-            <span class="list-actions">
-              <a href="{{ url_for('admin.course_edit', course_id=c.id) }}">Edit</a>
-              {% if c.competitions.count() == 0 %}
-                <form method="post" action="{{ url_for('admin.course_delete', course_id=c.id) }}" class="inline-form" onsubmit="return confirm('Delete this course?');">
-                  <button type="submit" class="btn danger small">Delete</button>
-                </form>
-              {% endif %}
-            </span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% elif course_search %}
-      <p class="muted">No courses match “{{ course_search }}”. <a href="{{ url_for('admin.dashboard') }}">Clear filter</a> or <a href="{{ url_for('admin.course_new') }}">add a new course</a>.</p>
-    {% else %}
-      <p class="muted">No courses yet. Add one — it will be available to every society.</p>
-    {% endif %}
-  </section>
+
+    <section class="page-tabs__panel" role="tabpanel" id="tab-competitions" aria-labelledby="tab-btn-competitions">
+      <section class="card">
+        <div class="card-heading-row">
+          <h2>Your competitions</h2>
+          <a class="btn primary small" href="{{ url_for('admin.competition_new') }}">New competition</a>
+        </div>
+        {% if competitions %}
+          <ul class="list">
+            {% for comp in competitions %}
+              <li>
+                <a href="{{ url_for('admin.competition_detail', comp_id=comp.id) }}"><strong>{{ comp.name }}</strong></a>
+                — {{ comp.course.display_label }}
+                · <a href="{{ url_for('admin.competition_results', comp_id=comp.id) }}">Results</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">No competitions yet.</p>
+        {% endif %}
+      </section>
+    </section>
+
+    <section class="page-tabs__panel" role="tabpanel" id="tab-courses" aria-labelledby="tab-btn-courses" hidden>
+      <section class="card">
+        <div class="card-heading-row">
+          <h2>Shared courses</h2>
+          <a class="btn primary small" href="{{ url_for('admin.course_new') }}">New course</a>
+        </div>
+        <form method="get" action="{{ url_for('admin.dashboard') }}" class="inline-form course-filter">
+          <label class="sr-only" for="course_q">Filter courses</label>
+          <input type="search" id="course_q" name="course_q" value="{{ course_search }}" placeholder="Filter by name or postcode…" maxlength="64">
+          <button type="submit" class="btn secondary small">Filter</button>
+          {% if course_search %}
+            <a class="btn secondary small" href="{{ url_for('admin.dashboard') }}#courses">Clear</a>
+          {% endif %}
+        </form>
+        {% if courses %}
+          <ul class="list">
+            {% for c in courses %}
+              <li class="list-row">
+                <span>
+                  <strong>{{ c.display_label }}</strong>
+                  {% if c.competitions.count() > 0 %}
+                    <span class="muted">— in use by {{ c.competitions.count() }} competition(s)</span>
+                  {% endif %}
+                </span>
+                <span class="list-actions">
+                  <a href="{{ url_for('admin.course_edit', course_id=c.id) }}">Edit</a>
+                  {% if c.competitions.count() == 0 %}
+                    <form method="post" action="{{ url_for('admin.course_delete', course_id=c.id) }}" class="inline-form" onsubmit="return confirm('Delete this course?');">
+                      <button type="submit" class="btn danger small">Delete</button>
+                    </form>
+                  {% endif %}
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% elif course_search %}
+          <p class="muted">No courses match “{{ course_search }}”. <a href="{{ url_for('admin.dashboard') }}#courses">Clear filter</a> or <a href="{{ url_for('admin.course_new') }}">add a new course</a>.</p>
+        {% else %}
+          <p class="muted">No courses yet. Add one — it will be available to every society.</p>
+        {% endif %}
+      </section>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='page-tabs.js') }}" defer></script>
 {% endblock %}

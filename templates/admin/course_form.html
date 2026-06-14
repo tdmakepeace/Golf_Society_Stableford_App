@@ -7,10 +7,10 @@
   <p class="muted">Course details are shared with every society — enter once and all clubs can use this course.</p>
   <form method="post" class="card form holes-form">
     <label>Course name
-      <input type="text" name="name" required value="{{ course.name if course else (form_name|default('', true)) }}">
+      <input type="text" name="name" required value="{{ form_name if form_name is defined else (course.name if course else '') }}">
     </label>
     <label>Postcode <span class="muted">(shown with name in lists, e.g. “Milford (BN2 1AA)”)</span>
-      <input type="text" name="postcode" maxlength="32" value="{{ course.postcode if course else (form_postcode|default('', true)) }}" placeholder="e.g. BN2 1AA">
+      <input type="text" name="postcode" maxlength="32" value="{{ form_postcode if form_postcode is defined else (course.postcode if course else '') }}" placeholder="e.g. BN2 1AA">
     </label>
     {% if not course %}
     <label>Import holes from CSV <span class="muted">(optional — columns <code>hole</code>, <code>par</code>, <code>si</code>; still enter name and postcode above)</span>
@@ -30,7 +30,7 @@
             <tr>
               <td>{{ i }}</td>
               <td><input type="number" name="par_{{ i }}" min="3" max="6" value="{{ h.par if h else 4 }}" required></td>
-              <td><input type="number" name="si_{{ i }}" min="1" max="18" value="{{ h.stroke_index if h else i }}" required></td>
+              <td><input type="number" name="si_{{ i }}" min="1" max="18" value="{{ h.stroke_index if h else i }}" required{% if duplicate_si_holes is defined and i in duplicate_si_holes %} class="input-duplicate-si" aria-invalid="true"{% endif %}></td>
             </tr>
           {% endfor %}
         </tbody>

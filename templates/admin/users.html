@@ -14,48 +14,16 @@
   <h1>Society players</h1>
   <p class="muted">Players are created once at society level, then added to competitions with event-specific handicap.</p>
 
-  {% if not popup %}
-  <section class="card">
-    <h2>Player registration link</h2>
-    <p class="muted">Share this link so players can sign up to <strong>{{ society.name }}</strong> themselves. The link is unique to your society and does not reveal its name in the URL.</p>
-    <div class="register-link-row">
-      <input type="text" id="register-link-url" class="register-link-input" value="{{ register_url }}" readonly>
-      <button type="button" class="btn secondary small" id="register-link-copy">Copy link</button>
-    </div>
-    <form method="post" action="{{ url_for('admin.society_regenerate_register_token') }}" class="inline-form" onsubmit="return confirm('Generate a new registration link? The current link will stop working.');">
-      <button type="submit" class="btn secondary small">Generate new link</button>
-    </form>
-  </section>
-
-  <section class="card">
-    <h2>Shared player password</h2>
-    <p class="muted">Used for first login across this society. Players can then set their own password in player account. Blank passwords on create or CSV import use this shared password.</p>
-    <form method="post" action="{{ url_for('admin.society_set_player_password') }}" class="form">
-      <label>New shared player password
-        <input type="password" name="society_player_password" required minlength="8" autocomplete="new-password" placeholder="e.g. SummerSeries26">
-      </label>
-      <button type="submit" class="btn primary">Save shared password</button>
-    </form>
-  </section>
-
-  <section class="card">
-    <h2>Import players (CSV)</h2>
-    <p class="muted">Columns: <code>email</code> and optional <code>password</code> (aliases: <code>e_mail</code>, <code>pwd</code>, <code>pass</code>). Header row required. Blank password uses the shared player password.</p>
-    <form method="post" action="{{ url_for('admin.society_import_users') }}" enctype="multipart/form-data" class="form">
-      <label>CSV file
-        <input type="file" name="csv_file" accept=".csv,text/csv" required>
-      </label>
-      <button type="submit" class="btn primary">Import players</button>
-    </form>
-  </section>
-  {% endif %}
-
+  {% if popup %}
   <section class="card">
     <h2>Add player</h2>
     <form method="post" action="{{ url_for('admin.society_user_new') }}" class="form inline-grid">
-      {% if popup %}<input type="hidden" name="popup" value="1">{% endif %}
+      <input type="hidden" name="popup" value="1">
       <label>Email
         <input type="email" name="email" required autocomplete="off">
+      </label>
+      <label>Friendly name <span class="muted">(optional — shown in brackets after email)</span>
+        <input type="text" name="friendly_name" maxlength="120" autocomplete="off" placeholder="e.g. Toby">
       </label>
       <label>Initial personal password <span class="muted">(optional — uses shared password if blank)</span>
         <input type="password" name="password" autocomplete="new-password">
@@ -63,56 +31,129 @@
       <button type="submit" class="btn primary">Create player</button>
     </form>
   </section>
+  {% else %}
+  <div class="page-tabs" data-page-tabs data-default-tab="players">
+    <div class="page-tabs__list" role="tablist" aria-label="Society players sections">
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-players" aria-controls="tab-players" aria-selected="true">Players<span class="page-tabs__count">{{ users|length }}</span></button>
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-archived" aria-controls="tab-archived" aria-selected="false" tabindex="-1">Archived<span class="page-tabs__count">{{ archived_users|length }}</span></button>
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-registration" aria-controls="tab-registration" aria-selected="false" tabindex="-1">Registration link</button>
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-password" aria-controls="tab-password" aria-selected="false" tabindex="-1">Shared password</button>
+      <button type="button" class="page-tabs__tab" role="tab" id="tab-btn-import" aria-controls="tab-import" aria-selected="false" tabindex="-1">Import CSV</button>
+    </div>
 
-  {% if not popup %}
-  <section class="card">
-    <h2>Players</h2>
-    {% if users %}
-      <ul class="list">
-        {% for u in users %}
-          <li class="list-row">
-            <span>{{ u.email }}</span>
-            <span class="list-actions">
-              <form method="post" action="{{ url_for('admin.society_user_reset_password', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Reset {{ u.email }} personal password to the shared player password?');">
-                <button type="submit" class="btn secondary small">Reset to shared password</button>
-              </form>
-              <form method="post" action="{{ url_for('admin.society_user_mark_deleted', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Mark {{ u.email }} as deleted? They will be hidden from this page and from new competition player lists.');">
-                <button type="submit" class="btn danger small">Mark deleted</button>
-              </form>
-            </span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">No players yet.</p>
-    {% endif %}
-  </section>
+    <section class="page-tabs__panel" role="tabpanel" id="tab-players" aria-labelledby="tab-btn-players">
+      <section class="card">
+        <h2>Add player</h2>
+        <form method="post" action="{{ url_for('admin.society_user_new') }}" class="form inline-grid">
+          <label>Email
+            <input type="email" name="email" required autocomplete="off">
+          </label>
+          <label>Friendly name <span class="muted">(optional — shown in brackets after email)</span>
+            <input type="text" name="friendly_name" maxlength="120" autocomplete="off" placeholder="e.g. Toby">
+          </label>
+          <label>Initial personal password <span class="muted">(optional — uses shared password if blank)</span>
+            <input type="password" name="password" autocomplete="new-password">
+          </label>
+          <button type="submit" class="btn primary">Create player</button>
+        </form>
+      </section>
 
-  <section class="card">
-    <h2>Archived players</h2>
-    {% if archived_users %}
-      <ul class="list">
-        {% for u in archived_users %}
-          <li class="list-row">
-            <span>{{ u.email }}</span>
-            <span class="list-actions">
-              <form method="post" action="{{ url_for('admin.society_user_restore', user_id=u.id) }}" class="inline-form">
-                <button type="submit" class="btn secondary small">Restore</button>
-              </form>
-              <form method="post" action="{{ url_for('admin.society_user_delete_permanent', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Permanently delete {{ u.email }}? This removes all their competition entries and scores and cannot be undone.');">
-                <button type="submit" class="btn danger small">Delete permanently</button>
-              </form>
-            </span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="muted">No archived players.</p>
-    {% endif %}
-  </section>
-  {% endif %}
+      <section class="card">
+        <h2>Active players</h2>
+        {% if users %}
+          <ul class="list">
+            {% for u in users %}
+              <li class="list-row">
+                <span>{{ u.display_label }}</span>
+                <span class="list-actions">
+                  <form method="post" action="{{ url_for('admin.society_user_update_friendly_name', user_id=u.id) }}" class="inline-form">
+                    <input type="text" name="friendly_name" value="{{ u.friendly_name or '' }}" maxlength="120" placeholder="Friendly name" aria-label="Friendly name for {{ u.email }}">
+                    <button type="submit" class="btn secondary small">Save name</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.society_user_reset_password', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Reset {{ u.display_label }} personal password to the shared player password?');">
+                    <button type="submit" class="btn secondary small">Reset to shared password</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.society_user_mark_deleted', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Mark {{ u.display_label }} as deleted? They will be hidden from this page and from new competition player lists.');">
+                    <button type="submit" class="btn danger small">Mark deleted</button>
+                  </form>
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">No players yet.</p>
+        {% endif %}
+      </section>
+    </section>
 
-  {% if not popup %}
+    <section class="page-tabs__panel" role="tabpanel" id="tab-archived" aria-labelledby="tab-btn-archived" hidden>
+      <section class="card">
+        <h2>Archived players</h2>
+        {% if archived_users %}
+          <ul class="list">
+            {% for u in archived_users %}
+              <li class="list-row">
+                <span>{{ u.display_label }}</span>
+                <span class="list-actions">
+                  <form method="post" action="{{ url_for('admin.society_user_restore', user_id=u.id) }}" class="inline-form">
+                    <button type="submit" class="btn secondary small">Restore</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.society_user_delete_permanent', user_id=u.id) }}" class="inline-form" onsubmit="return confirm('Permanently delete {{ u.display_label }}? This removes all their competition entries and scores and cannot be undone.');">
+                    <button type="submit" class="btn danger small">Delete permanently</button>
+                  </form>
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">No archived players.</p>
+        {% endif %}
+      </section>
+    </section>
+
+    <section class="page-tabs__panel" role="tabpanel" id="tab-registration" aria-labelledby="tab-btn-registration" hidden>
+      <section class="card">
+        <h2>Player registration link</h2>
+        <p class="muted">Share this link so players can sign up to <strong>{{ society.name }}</strong> themselves. The link is unique to your society and does not reveal its name in the URL.</p>
+        <div class="register-link-row">
+          <input type="text" id="register-link-url" class="register-link-input" value="{{ register_url }}" readonly>
+          <button type="button" class="btn secondary small" id="register-link-copy">Copy link</button>
+        </div>
+        <form method="post" action="{{ url_for('admin.society_regenerate_register_token') }}" class="inline-form" onsubmit="return confirm('Generate a new registration link? The current link will stop working.');">
+          <button type="submit" class="btn secondary small">Generate new link</button>
+        </form>
+      </section>
+    </section>
+
+    <section class="page-tabs__panel" role="tabpanel" id="tab-password" aria-labelledby="tab-btn-password" hidden>
+      <section class="card">
+        <h2>Shared player password</h2>
+        <p class="muted">Used for first login across this society. Players can then set their own password in player account. Blank passwords on create or CSV import use this shared password.</p>
+        <form method="post" action="{{ url_for('admin.society_set_player_password') }}" class="form">
+          <label>New shared player password
+            <input type="password" name="society_player_password" required minlength="8" autocomplete="new-password" placeholder="e.g. SummerSeries26">
+          </label>
+          <button type="submit" class="btn primary">Save shared password</button>
+        </form>
+      </section>
+    </section>
+
+    <section class="page-tabs__panel" role="tabpanel" id="tab-import" aria-labelledby="tab-btn-import" hidden>
+      <section class="card">
+        <h2>Import players (CSV)</h2>
+        <p class="muted">Columns: <code>email</code>, optional <code>password</code>, and optional <code>friendly_name</code> (aliases: <code>e_mail</code>, <code>pwd</code>, <code>pass</code>, <code>name</code>). Header row required. Blank password uses the shared player password.</p>
+        <form method="post" action="{{ url_for('admin.society_import_users') }}" enctype="multipart/form-data" class="form">
+          <label>CSV file
+            <input type="file" name="csv_file" accept=".csv,text/csv" required>
+          </label>
+          <button type="submit" class="btn primary">Import players</button>
+        </form>
+      </section>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='page-tabs.js') }}" defer></script>
+
   <script>
     (function () {
       var btn = document.getElementById("register-link-copy");

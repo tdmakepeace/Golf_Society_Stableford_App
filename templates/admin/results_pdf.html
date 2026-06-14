@@ -78,7 +78,7 @@
         {% for row in leaderboard %}
           <tr>
             <td class="pos">{{ loop.index }}</td>
-            <td class="player">{{ row.email }}</td>
+            <td class="player">{{ row.display_label }}</td>
             <td class="hcp">{{ row.playing_handicap }}</td>
             <td class="gross">{{ row.gross_total if row.gross_total is not none else '—' }}</td>
             <td class="points"><strong>{{ row.total_points }}</strong></td>
@@ -91,7 +91,7 @@
   <h2>Full scores (detail)</h2>
   {% for row in leaderboard %}
     <div class="player-block">
-      <h3>{{ loop.index }}. {{ row.email }} <span class="muted">(HCP {{ row.playing_handicap }}, {{ row.total_points }} pts)</span></h3>
+      <h3>{{ loop.index }}. {{ row.display_label }} <span class="muted">(HCP {{ row.playing_handicap }}, {{ row.total_points }} pts)</span></h3>
       <table class="score-table">
         <thead>
           <tr>

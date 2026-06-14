@@ -48,3 +48,27 @@ def validate_bulk_event_password(password: str) -> None:
 
 
 validate_competition_password = validate_bulk_event_password
+
+
+def normalize_friendly_name(raw: str | None) -> str | None:
+    """Return stripped friendly name, or None if blank."""
+    if raw is None:
+        return None
+    name = raw.strip()
+    if not name:
+        return None
+    if len(name) > 120:
+        raise ValueError("Friendly name must be 120 characters or fewer.")
+    return name
+
+
+def normalize_registration_base_url(raw: str | None) -> str | None:
+    """Return normalized public base URL for registration links, or None if blank."""
+    if raw is None:
+        return None
+    url = raw.strip()
+    if not url:
+        return None
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("URL must start with http:// or https://.")
+    return url.rstrip("/")

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ player.email }} — {{ competition.name }}{% endblock %}
+{% block title %}{{ player.display_label }} — {{ competition.name }}{% endblock %}
 {% block home_href %}{{ url_for('admin.dashboard') }}{% endblock %}
 {% block nav %}{% include "admin/_nav.html" %}{% endblock %}
 {% block body %}
   <h1>{{ competition.name }}</h1>
-  <p class="muted">{{ competition.course.display_label }} · <strong>{{ player.email }}</strong> · Playing handicap <strong>{{ playing_handicap }}</strong></p>
+  <p class="muted">{{ competition.course.display_label }} · <strong>{{ player.display_label }}</strong> · Playing handicap <strong>{{ playing_handicap }}</strong></p>
   {% if handicap_splits_evenly_by_18 %}
     <p class="muted small">This handicap is a multiple of 18, so they get the same number of shots on every hole; stroke index only affects handicaps with a remainder (e.g. 17, 19, 20).</p>
   {% endif %}
@@ -39,7 +39,7 @@
               <td>
                 <input type="number" name="strokes_{{ r.hole }}" min="1" max="20"
                   value="{{ r.gross if r.gross else '' }}" placeholder="—"
-                  aria-label="Gross shots hole {{ r.hole }} for {{ player.email }}">
+                  aria-label="Gross shots hole {{ r.hole }} for {{ player.display_label }}">
               </td>
               <td>{{ r.points }}</td>
             </tr>
