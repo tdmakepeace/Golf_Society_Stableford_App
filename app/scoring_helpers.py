@@ -14,44 +14,73 @@ def course_hole_tuples(course) -> list[tuple[int, int, int]]:
     return [(h.hole_number, h.par, h.stroke_index) for h in holes]
 
 
+def _apply_hole_score(comp: Competition, user: User, hole_number: int, raw: str) -> str | None:
+    if raw == "":
+        Score.query.filter_by(
+            competition_id=comp.id,
+            user_id=user.id,
+            hole_number=hole_number,
+        ).delete(synchronize_session=False)
+        return None
+    try:
+        strokes = int(raw)
+    except ValueError:
+        return f"Hole {hole_number}: invalid strokes."
+    if strokes < 1 or strokes > 20:
+        return f"Hole {hole_number}: strokes must be 1–20."
+    score = Score.query.filter_by(
+        competition_id=comp.id,
+        user_id=user.id,
+        hole_number=hole_number,
+    ).first()
+    if score:
+        score.gross_strokes = strokes
+    else:
+        db.session.add(
+            Score(
+                competition_id=comp.id,
+                user_id=user.id,
+                hole_number=hole_number,
+                gross_strokes=strokes,
+            )
+        )
+    return None
+
+
 def save_competition_scores(
     comp: Competition, user: User, holes: list, form_data
 ) -> str | None:
     """
     Persist gross scores from a form mapping (hole inputs as strokes_N).
-    Returns an error message, or None on success (caller should commit).
+    A blank field clears that hole. Returns an error message, or None on
+    success (caller should commit).
     """
     for h in holes:
-        raw = form_data.get(f"strokes_{h.hole_number}", "").strip()
-        if raw == "":
-            Score.query.filter_by(
-                competition_id=comp.id,
-                user_id=user.id,
-                hole_number=h.hole_number,
-            ).delete(synchronize_session=False)
+        err = _apply_hole_score(
+            comp,
+            user,
+            h.hole_number,
+            form_data.get(f"strokes_{h.hole_number}", "").strip(),
+        )
+        if err:
+            return err
+    return None
+
+
+def save_submitted_hole_scores(
+    comp: Competition, user: User, holes: list, form_data
+) -> str | None:
+    """
+    Persist only holes whose strokes_N field was submitted.
+    Used by match mode so saving one hole does not clear the rest of the card.
+    """
+    for h in holes:
+        key = f"strokes_{h.hole_number}"
+        if key not in form_data:
             continue
-        try:
-            strokes = int(raw)
-        except ValueError:
-            return f"Hole {h.hole_number}: invalid strokes."
-        if strokes < 1 or strokes > 20:
-            return f"Hole {h.hole_number}: strokes must be 1–20."
-        score = Score.query.filter_by(
-            competition_id=comp.id,
-            user_id=user.id,
-            hole_number=h.hole_number,
-        ).first()
-        if score:
-            score.gross_strokes = strokes
-        else:
-            db.session.add(
-                Score(
-                    competition_id=comp.id,
-                    user_id=user.id,
-                    hole_number=h.hole_number,
-                    gross_strokes=strokes,
-                )
-            )
+        err = _apply_hole_score(comp, user, h.hole_number, form_data.get(key, "").strip())
+        if err:
+            return err
     return None
 
 

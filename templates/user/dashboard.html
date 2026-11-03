@@ -14,13 +14,16 @@
   {% if entries %}
     <ul class="card list">
       {% for item in entries %}
-        <li>
-          <a href="{{ url_for('user.competition_scorecard', comp_id=item.competition.id) }}">
-            <strong>{{ item.competition.name }}</strong>
-          </a>
-          <span class="muted">— {{ item.competition.course.display_label }}</span>
-          <br>
-          <span class="small">Playing HCP {{ item.playing_handicap }} · Stableford so far: <strong>{{ item.total_points }}</strong></span>
+        <li class="comp-row">
+          <div class="comp-row__main">
+            <a href="{{ url_for('user.competition_scorecard', comp_id=item.competition.id) }}">
+              <strong>{{ item.competition.name }}</strong>
+            </a>
+            <span class="muted">— {{ item.competition.course.display_label }}</span>
+            <br>
+            <span class="small">Playing HCP {{ item.playing_handicap }} · Stableford so far: <strong>{{ item.total_points }}</strong></span>
+          </div>
+          <a class="btn secondary comp-row__match" href="{{ url_for('user.competition_match', comp_id=item.competition.id) }}">Match mode</a>
         </li>
       {% endfor %}
     </ul>

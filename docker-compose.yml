@@ -6,9 +6,14 @@ services:
       - "5000:5000"
     environment:
       SECRET_KEY: ${SECRET_KEY:-dev-change-me-in-production}
+      USE_HTTPS: ${USE_HTTPS:-1}
+      # Optional: comma-separated hostnames/IPs to include when generating a new cert
+      # (useful so phones can open https://<your-LAN-IP>:5000 without a name mismatch).
+      HTTPS_EXTRA_HOSTS: ${HTTPS_EXTRA_HOSTS:-}
       # Optional: customize bootstrap super admin on first DB creation.
       BOOTSTRAP_SUPER_ADMIN_EMAIL: ${BOOTSTRAP_SUPER_ADMIN_EMAIL:-superadmin@example.com}
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-GolfSuper1!}
     volumes:
       - ./instance:/app/instance
+      - ./certs:/app/certs
     restart: unless-stopped

@@ -5,6 +5,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
+ENV USE_HTTPS=1
 ENV SECRET_KEY=dev-change-me-in-production
 
 COPY requirements.txt .
@@ -22,8 +23,9 @@ RUN apt-get update \
 COPY . .
 
 # Flask uses app.instance_path (/app/instance) for SQLite by default.
-RUN mkdir -p /app/instance
-VOLUME ["/app/instance"]
+# certs/ holds the self-signed HTTPS keypair (generate on first start if missing).
+RUN mkdir -p /app/instance /app/certs
+VOLUME ["/app/instance", "/app/certs"]
 
 EXPOSE 5000
 

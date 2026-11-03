@@ -143,7 +143,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Open `http://127.0.0.1:5000/`.
+Open `https://127.0.0.1:5000/` (self-signed HTTPS; accept the browser warning once). Set `USE_HTTPS=0` for plain HTTP.
 
 `run.py` controls local debug settings. For production, set a strong `SECRET_KEY`.
 
@@ -153,18 +153,21 @@ Open `http://127.0.0.1:5000/`.
 
 The repo includes `Dockerfile` and `docker-compose.yml`.
 
-SQLite is stored at `/app/instance` in container and persisted via:
+Persisted volumes:
 
-`./instance` (host) -> `/app/instance` (container)
+- `./instance` (host) -> `/app/instance` (container) — SQLite
+- `./certs` (host) -> `/app/certs` (container) — self-signed HTTPS keypair
+
+The container serves **HTTPS** on port 5000 by default (same self-signed cert behaviour as local `run.py`). Set `USE_HTTPS=0` for plain HTTP. Optional `HTTPS_EXTRA_HOSTS` (comma-separated hostnames/IPs) is used when creating a new cert so phones can open `https://<LAN-IP>:5000` without a name mismatch.
 
 ### Start
 
 ```bash
-mkdir instance
+mkdir instance certs
 docker compose up --build -d
 ```
 
-Open `http://localhost:5000/`.
+Open `https://localhost:5000/` (accept the certificate warning once on first visit).
 
 ### Rebuild with no cache
 
@@ -187,13 +190,15 @@ docker compose up --build --force-recreate -d
 docker compose down
 ```
 
-Database remains at `instance/golfsociety.sqlite`.
+Database remains at `instance/golfsociety.sqlite`. Certificates remain under `certs/`.
 
 ### Environment variables with `docker-compose.override.yaml`
 
 `docker-compose.yml` already maps:
 
 - `SECRET_KEY`
+- `USE_HTTPS`
+- `HTTPS_EXTRA_HOSTS`
 - `BOOTSTRAP_SUPER_ADMIN_EMAIL`
 - `BOOTSTRAP_SUPER_ADMIN_PASSWORD`
 
@@ -206,6 +211,7 @@ services:
   golfsociety:
     environment:
       SECRET_KEY: "replace-with-strong-secret"
+      HTTPS_EXTRA_HOSTS: "192.168.1.10"
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "superadmin@example.com"
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "GolfSuper1!"
 ```
@@ -220,6 +226,7 @@ PowerShell alternative (session-only env vars):
 
 ```powershell
 $env:SECRET_KEY="replace-with-strong-secret"
+$env:HTTPS_EXTRA_HOSTS="192.168.1.10"
 $env:BOOTSTRAP_SUPER_ADMIN_EMAIL="superadmin@example.com"
 $env:BOOTSTRAP_SUPER_ADMIN_PASSWORD="GolfSuper1!"
 docker compose up --build -d
@@ -228,9 +235,9 @@ docker compose up --build -d
 ### Alternative without Compose
 
 ```bash
-mkdir instance
+mkdir instance certs
 docker build -t golfsociety .
-docker run -d --name golfsociety-app -p 5000:5000 -v ${PWD}/instance:/app/instance golfsociety
+docker run -d --name golfsociety-app -p 5000:5000 -e USE_HTTPS=1 -v ${PWD}/instance:/app/instance -v ${PWD}/certs:/app/certs golfsociety
 ```
 
 ---

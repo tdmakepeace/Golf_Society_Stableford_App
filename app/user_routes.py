@@ -7,7 +7,11 @@ from . import db
 from .decorators import user_required
 from .models import Competition, CompetitionPlayer, Hole, Society, User
 from .player_helpers import apply_user_password
-from .scoring_helpers import player_result, save_competition_scores
+from .scoring_helpers import (
+    player_result,
+    save_competition_scores,
+    save_submitted_hole_scores,
+)
 from .validators import validate_email_address, validate_password
 
 PLAYER_COMPETITION_IDS = "player_competition_ids"
@@ -148,22 +152,38 @@ def dashboard():
     return render_template("user/dashboard.html", entries=summaries)
 
 
-@bp.route("/player/competition/<int:comp_id>", methods=["GET", "POST"])
-@user_required
-def competition_scorecard(comp_id: int):
+def _player_competition(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
     entry = CompetitionPlayer.query.filter_by(
         competition_id=comp.id, user_id=current_user.id
     ).first()
-    if not entry:
-        flash("You are not in this competition.", "error")
-        return redirect(url_for("user.dashboard"))
+    return comp, entry
 
-    holes = (
+
+def _course_holes(comp: Competition):
+    return (
         Hole.query.filter_by(course_id=comp.course_id)
         .order_by(Hole.hole_number)
         .all()
     )
+
+
+def _first_open_hole(rows: list[dict]) -> int:
+    for row in rows:
+        if row["gross"] is None:
+            return row["hole"]
+    return rows[0]["hole"] if rows else 1
+
+
+@bp.route("/player/competition/<int:comp_id>", methods=["GET", "POST"])
+@user_required
+def competition_scorecard(comp_id: int):
+    comp, entry = _player_competition(comp_id)
+    if not entry:
+        flash("You are not in this competition.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    holes = _course_holes(comp)
 
     if request.method == "POST":
         if comp.locked:
@@ -192,6 +212,81 @@ def competition_scorecard(comp_id: int):
         course_par_total=pr["course_par_total"],
         gross_total=pr["gross_total"],
         target_gross_total=pr["target_gross_total"],
+    )
+
+
+@bp.route("/player/competition/<int:comp_id>/match", methods=["GET", "POST"])
+@user_required
+def competition_match(comp_id: int):
+    comp, entry = _player_competition(comp_id)
+    if not entry:
+        flash("You are not in this competition.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    holes = _course_holes(comp)
+    if not holes:
+        flash("This course has no holes yet.", "error")
+        return redirect(url_for("user.dashboard"))
+
+    hole_numbers = [h.hole_number for h in holes]
+
+    def hole_url(hole_number: int):
+        return url_for(
+            "user.competition_match", comp_id=comp.id, hole=hole_number
+        )
+
+    if request.method == "POST":
+        try:
+            current = int(request.form.get("hole", ""))
+        except ValueError:
+            current = hole_numbers[0]
+        if current not in hole_numbers:
+            current = hole_numbers[0]
+
+        if comp.locked:
+            flash("This competition is locked. Scores cannot be changed.", "error")
+            return redirect(hole_url(current))
+
+        err = save_submitted_hole_scores(comp, current_user, holes, request.form)
+        if err:
+            flash(err, "error")
+            return redirect(hole_url(current))
+        db.session.commit()
+
+        nav = request.form.get("nav", "stay")
+        idx = hole_numbers.index(current)
+        if nav == "prev" and idx > 0:
+            return redirect(hole_url(hole_numbers[idx - 1]))
+        if nav == "next" and idx < len(hole_numbers) - 1:
+            return redirect(hole_url(hole_numbers[idx + 1]))
+        return redirect(hole_url(current))
+
+    pr = player_result(comp, current_user)
+    rows = pr["rows"]
+    requested = request.args.get("hole", type=int)
+    if requested in hole_numbers:
+        current = requested
+    else:
+        current = _first_open_hole(rows)
+    row = next(r for r in rows if r["hole"] == current)
+    idx = hole_numbers.index(current)
+    phc = pr["playing_handicap"]
+    return render_template(
+        "user/match.html",
+        competition=comp,
+        scorecard_readonly=comp.locked,
+        handicap_splits_evenly_by_18=phc > 0 and phc % 18 == 0,
+        row=row,
+        hole_index=idx + 1,
+        hole_count=len(hole_numbers),
+        has_prev=idx > 0,
+        has_next=idx < len(hole_numbers) - 1,
+        prev_hole=hole_numbers[idx - 1] if idx > 0 else None,
+        next_hole=hole_numbers[idx + 1] if idx < len(hole_numbers) - 1 else None,
+        total_points=pr["total_points"],
+        playing_handicap=pr["playing_handicap"],
+        holes_entered=pr["holes_entered"],
+        progress_pct=round((idx + 1) / len(hole_numbers) * 100),
     )
 
 
