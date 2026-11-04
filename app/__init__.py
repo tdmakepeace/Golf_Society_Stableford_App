@@ -49,7 +49,7 @@ login_manager.login_view = "main.index"
 login_manager.login_message_category = "info"
 
 SESSION_LAST_ACTIVITY_KEY = "_session_last_activity"
-SESSION_IDLE_SECONDS = 600  # 10 minutes
+SESSION_IDLE_SECONDS = 1800  # 30 minutes
 
 
 @login_manager.unauthorized_handler
@@ -125,7 +125,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             if isinstance(current_user, User):
                 session.pop(user_routes.PLAYER_COMPETITION_IDS, None)
             logout_user()
-            flash("You were signed out after 10 minutes of inactivity.", "info")
+            flash("You were signed out after 30 minutes of inactivity.", "info")
             bp = request.blueprint
             if bp == "super_admin":
                 return redirect(url_for("super_admin.login"))
