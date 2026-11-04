@@ -37,6 +37,18 @@ def _is_popup_request() -> bool:
     return (request.args.get("popup") or request.form.get("popup") or "") == "1"
 
 
+def _society_competitions_query():
+    """Competitions created by any admin in the signed-in admin's society."""
+    return Competition.query.join(Admin, Competition.admin_id == Admin.id).filter(
+        Admin.society_id == current_user.society_id
+    )
+
+
+def _competition_in_current_society(comp: Competition) -> bool:
+    owner = db.session.get(Admin, comp.admin_id)
+    return owner is not None and owner.society_id == current_user.society_id
+
+
 def _latest_previous_handicap_for_user(comp: Competition, user_id: int) -> int:
     prior = (
         CompetitionPlayer.query.join(Competition)
@@ -103,11 +115,7 @@ def logout():
 def dashboard():
     course_search = (request.args.get("course_q") or "").strip()
     courses = _courses_query(course_search).all()
-    comps = (
-        Competition.query.filter_by(admin_id=current_user.id)
-        .order_by(Competition.name)
-        .all()
-    )
+    comps = _society_competitions_query().order_by(Competition.name).all()
     return render_template(
         "admin/dashboard.html",
         society=current_user.society,
@@ -337,8 +345,8 @@ def competition_new():
 @admin_required
 def competition_detail(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     players = (
@@ -366,8 +374,8 @@ def competition_detail(comp_id: int):
 @admin_required
 def competition_add_player(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
     if comp.locked:
         flash("This competition is locked. Unlock it to change the player list.", "error")
@@ -425,8 +433,8 @@ def competition_add_player(comp_id: int):
 @admin_required
 def competition_remove_player(comp_id: int, user_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
     if comp.locked:
         flash("This competition is locked. Unlock it to remove players.", "error")
@@ -452,8 +460,8 @@ def competition_remove_player(comp_id: int, user_id: int):
 @admin_required
 def competition_update_player_handicap(comp_id: int, user_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
     if comp.locked:
         flash("This competition is locked. Unlock it to edit player handicaps.", "error")
@@ -486,8 +494,8 @@ def competition_update_player_handicap(comp_id: int, user_id: int):
 @admin_required
 def competition_player_scores(comp_id: int, user_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     entry = CompetitionPlayer.query.filter_by(
@@ -538,8 +546,8 @@ def competition_player_scores(comp_id: int, user_id: int):
 @admin_required
 def competition_set_locked(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     raw = (request.form.get("locked") or "").strip().lower()
@@ -558,8 +566,8 @@ def competition_set_locked(comp_id: int):
 @admin_required
 def competition_results(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     board = competition_leaderboard(comp)
@@ -582,8 +590,8 @@ def competition_results(comp_id: int):
 @admin_required
 def competition_results_pdf(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     board = competition_leaderboard(comp)
@@ -760,8 +768,8 @@ def course_delete(course_id: int):
 @admin_required
 def competition_delete(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
 
     db.session.delete(comp)
@@ -793,8 +801,8 @@ def society_set_player_password():
 @admin_required
 def competition_import_players(comp_id: int):
     comp = Competition.query.get_or_404(comp_id)
-    if comp.admin_id != current_user.id:
-        flash("Not your competition.", "error")
+    if not _competition_in_current_society(comp):
+        flash("That competition is not in your society.", "error")
         return redirect(url_for("admin.dashboard"))
     if comp.locked:
         flash("This competition is locked. Unlock it to import players.", "error")

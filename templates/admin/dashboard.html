@@ -5,7 +5,7 @@
 {% block body %}
   <h1>Dashboard</h1>
   <p class="bright">Society: <strong>{{ society.name }}</strong></p>
-  <p class="bright">Courses are shared with every society admin. Competitions listed here are only ones you created.</p>
+  <p class="bright">Courses are shared across societies. Competitions listed here belong to this society, including ones created by other admins.</p>
 
   <div class="page-tabs" data-page-tabs data-default-tab="{{ 'courses' if course_search else 'competitions' }}">
     <div class="page-tabs__list" role="tablist" aria-label="Dashboard sections">
@@ -16,7 +16,7 @@
     <section class="page-tabs__panel" role="tabpanel" id="tab-competitions" aria-labelledby="tab-btn-competitions">
       <section class="card">
         <div class="card-heading-row">
-          <h2>Your competitions</h2>
+          <h2>Society competitions</h2>
           <a class="btn primary small" href="{{ url_for('admin.competition_new') }}">New competition</a>
         </div>
         {% if competitions %}
@@ -25,6 +25,7 @@
               <li>
                 <a href="{{ url_for('admin.competition_detail', comp_id=comp.id) }}"><strong>{{ comp.name }}</strong></a>
                 — {{ comp.course.display_label }}
+                {% if comp.admin %}· {{ comp.admin.email }}{% endif %}
                 · <a href="{{ url_for('admin.competition_results', comp_id=comp.id) }}">Results</a>
               </li>
             {% endfor %}
