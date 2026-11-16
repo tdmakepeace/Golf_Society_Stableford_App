@@ -4,6 +4,25 @@ from . import db
 from .models import Competition, CompetitionPlayer, Hole, Score, User
 from .stableford import strokes_on_hole, total_stableford
 
+# Blank holes count as this many shots in the displayed round total.
+UNSCORED_HOLE_STROKES = 10
+
+
+def gross_total_label(entered: int, holes_scored: int, hole_count: int) -> str:
+    """
+    Shots actually entered, plus 10 for each unscored hole.
+
+    14 holes totalling 82, with 4 blanks, displays as ``82(+40, 122)``.
+    A complete card shows only the entered total. A card with no scores shows an em dash.
+    """
+    if holes_scored <= 0:
+        return "—"
+    missing = hole_count - holes_scored
+    if missing <= 0:
+        return str(entered)
+    added = missing * UNSCORED_HOLE_STROKES
+    return f"{entered}(+{added}, {entered + added})"
+
 
 def course_hole_tuples(course) -> list[tuple[int, int, int]]:
     holes = (
@@ -98,11 +117,17 @@ def player_result(comp: Competition, user: User) -> dict:
             "rows": [],
             "course_par_total": 0,
             "gross_total": None,
+            "gross_display": "—",
             "target_gross_total": 0,
             "holes_entered": 0,
         }
 
-    holes = course_hole_tuples(comp.course)
+    hole_rows = (
+        Hole.query.filter_by(course_id=comp.course_id)
+        .order_by(Hole.hole_number)
+        .all()
+    )
+    holes = [(h.hole_number, h.par, h.stroke_index) for h in hole_rows]
     scores = Score.query.filter_by(competition_id=comp.id, user_id=user.id).all()
     gross = {s.hole_number: s.gross_strokes for s in scores}
     total_pts, hole_pts = total_stableford(holes, gross, entry.playing_handicap)
@@ -110,20 +135,23 @@ def player_result(comp: Competition, user: User) -> dict:
     rows = []
     course_par_total = 0
     gross_sum = 0
-    for hole_num, par, si in holes:
-        course_par_total += par
-        g = gross.get(hole_num)
-        recv = strokes_on_hole(entry.playing_handicap, si)
-        pts = hole_pts.get(hole_num, 0)
-        net_par_gross = par + recv
+    holes_with_scores = 0
+    for h in hole_rows:
+        course_par_total += h.par
+        g = gross.get(h.hole_number)
+        recv = strokes_on_hole(entry.playing_handicap, h.stroke_index)
+        pts = hole_pts.get(h.hole_number, 0)
+        net_par_gross = h.par + recv
         net_strokes = (g - recv) if g is not None else None
         if g is not None:
             gross_sum += g
+            holes_with_scores += 1
         rows.append(
             {
-                "hole": hole_num,
-                "par": par,
-                "stroke_index": si,
+                "hole": h.hole_number,
+                "par": h.par,
+                "distance": h.distance,
+                "stroke_index": h.stroke_index,
                 "strokes_received": recv,
                 "net_par_gross": net_par_gross,
                 "gross": g,
@@ -132,7 +160,6 @@ def player_result(comp: Competition, user: User) -> dict:
             }
         )
 
-    holes_with_scores = len(gross)
     target_gross_total = course_par_total + entry.playing_handicap
     return {
         "playing_handicap": entry.playing_handicap,
@@ -142,6 +169,9 @@ def player_result(comp: Competition, user: User) -> dict:
         "rows": rows,
         "course_par_total": course_par_total,
         "gross_total": gross_sum if holes_with_scores else None,
+        "gross_display": gross_total_label(
+            gross_sum, holes_with_scores, len(hole_rows)
+        ),
         "target_gross_total": target_gross_total,
         "holes_entered": holes_with_scores,
     }
@@ -155,7 +185,9 @@ def competition_leaderboard(comp: Competition) -> list[dict]:
         scores = Score.query.filter_by(competition_id=comp.id, user_id=user.id).all()
         gross = {s.hole_number: s.gross_strokes for s in scores}
         total_pts, hole_pts = total_stableford(holes, gross, entry.playing_handicap)
-        gross_total = sum(gross.values()) if gross else None
+        gross_sum = sum(gross[n] for n, _, _ in holes if n in gross)
+        holes_scored = sum(1 for n, _, _ in holes if n in gross)
+        gross_total = gross_sum if holes_scored else None
         user_par_by_hole: dict[int, int] = {}
         user_par_total = 0
         for hole_num, par, si in holes:
@@ -171,6 +203,7 @@ def competition_leaderboard(comp: Competition) -> list[dict]:
                 "playing_handicap": entry.playing_handicap,
                 "total_points": total_pts,
                 "gross_total": gross_total,
+                "gross_display": gross_total_label(gross_sum, holes_scored, len(holes)),
                 "hole_points": hole_pts,
                 "gross_by_hole": gross,
                 "user_par_by_hole": user_par_by_hole,

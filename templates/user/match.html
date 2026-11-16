@@ -17,7 +17,7 @@
   {% if handicap_splits_evenly_by_18 %}
     <p class="muted small">This handicap is a multiple of 18, so you get the same number of shots on every hole.</p>
   {% endif %}
-  <p class="highlight">Stableford <strong>{{ total_points }}</strong> <span class="muted small">· {{ holes_entered }} of {{ hole_count }} holes scored</span></p>
+  <p class="highlight">Stableford <strong>{{ total_points }}</strong> <span class="muted small">· Shots {{ gross_display }} · {{ holes_entered }} of {{ hole_count }} holes scored</span></p>
 
   {% if scorecard_readonly %}
     <p class="flash flash-info">This competition has been locked by the organiser. You can view each hole, but scores cannot be changed.</p>
@@ -33,6 +33,7 @@
 
     <ul class="match-facts">
       <li><span>Par</span><strong>{{ row.par }}</strong></li>
+      <li><span>Yds</span><strong>{{ row.distance if row.distance else '—' }}</strong></li>
       <li><span>SI</span><strong>{{ row.stroke_index }}</strong></li>
       <li><span>HCP shots</span><strong>{{ row.strokes_received }}</strong></li>
       <li><span>Par + HCP</span><strong>{{ row.net_par_gross }}</strong></li>
@@ -65,18 +66,18 @@
           inputmode="numeric"
           name="strokes_{{ row.hole }}"
           autocomplete="off"
-          enterkeyhint="next"
+          enterkeyhint="{% if has_next %}next{% else %}done{% endif %}"
           value="{{ row.gross if row.gross is not none else '' }}"
           placeholder="—"
           aria-label="Shots for hole {{ row.hole }}"
         >
         <p class="match-points">Points on this hole: <strong>{{ row.points if row.gross is not none else '—' }}</strong></p>
-        <p class="muted small match-hint">Leave blank to clear this hole. Moving on saves this score.</p>
+        <p class="muted small match-hint">{% if has_next %}Leave blank to clear this hole. Moving on saves this score.{% else %}Leave blank to clear this hole. Saving takes you back to My competitions.{% endif %}</p>
         <div class="match-nav">
           {% if has_next %}
             <button type="submit" name="nav" value="next" class="btn primary match-nav__next" formnovalidate>Next hole</button>
           {% else %}
-            <button type="submit" name="nav" value="stay" class="btn primary match-nav__next" formnovalidate>Save score</button>
+            <button type="submit" name="nav" value="home" class="btn primary match-nav__next" formnovalidate>Save and go home</button>
           {% endif %}
           <button type="submit" name="nav" value="prev" class="btn secondary match-nav__prev" formnovalidate{% if not has_prev %} disabled{% endif %}>Previous hole</button>
         </div>
@@ -85,7 +86,7 @@
     <p class="match-running">
       <span class="match-running__label">Running score</span>
       <strong>{{ total_points }}</strong>
-      <span class="muted small">Stableford · {{ holes_entered }} of {{ hole_count }} holes</span>
+      <span class="muted small">Shots {{ gross_display }} · {{ holes_entered }} of {{ hole_count }} holes</span>
     </p>
   </div>
 {% endblock %}

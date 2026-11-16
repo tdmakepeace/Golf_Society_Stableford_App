@@ -767,6 +767,14 @@ details.result-row-details[open] > summary .result-expand-chevron {
   max-width: none;
 }
 
+.holes-form table.data input.hole-distance {
+  width: 5.5rem;
+}
+
+.gross-with-blanks {
+  white-space: nowrap;
+}
+
 .holes-form table.data input.input-duplicate-si {
   border-color: var(--error);
   background: rgba(248, 113, 113, 0.12);
@@ -999,7 +1007,7 @@ a.comp-row__match {
 
 .match-facts {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.5rem;
   list-style: none;
   padding: 0;
@@ -1127,6 +1135,12 @@ a.comp-row__match {
   margin: 0.15rem 0 0.1rem;
   font-size: 2rem;
   line-height: 1.1;
+}
+
+@media (max-width: 640px) {
+  .match-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 380px) {

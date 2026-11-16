@@ -13,16 +13,16 @@
       <input type="text" name="postcode" maxlength="32" value="{{ form_postcode if form_postcode is defined else (course.postcode if course else '') }}" placeholder="e.g. BN2 1AA">
     </label>
     {% if not course %}
-    <label>Import holes from CSV <span class="muted">(optional — columns <code>hole</code>, <code>par</code>, <code>si</code>; still enter name and postcode above)</span>
+    <label>Import holes from CSV <span class="muted">(optional — columns <code>hole</code>, <code>par</code>, <code>si</code>, <code>yds</code>; still enter name and postcode above)</span>
       <input type="file" name="holes_csv" accept=".csv,text/csv">
     </label>
-    <p class="muted small">Select a CSV file to fill the hole table below. You can edit values before saving. Columns: <code>hole</code>, <code>par</code>, <code>si</code> (18 rows).</p>
+    <p class="muted small">Select a CSV file to fill the hole table below. You can edit values before saving. Columns: <code>hole</code>, <code>par</code>, <code>si</code>, and <code>yds</code> (or <code>yards</code> / <code>distance</code>) for 18 rows.</p>
     {% endif %}
-    <p class="muted">Enter par (3–6) and stroke index (1–18, unique) for each hole. Stroke index <strong>1</strong> is the hardest hole (gets an extra shot before higher numbers); <strong>18</strong> is the easiest.</p>
+    <p class="muted">Enter par (3–6), distance in yards (1–999), and stroke index (1–18, unique) for each hole. Stroke index <strong>1</strong> is the hardest hole (gets an extra shot before higher numbers); <strong>18</strong> is the easiest.</p>
     <div class="table-wrap">
       <table class="data">
         <thead>
-          <tr><th>Hole</th><th>Par</th><th>Stroke index</th></tr>
+          <tr><th>Hole</th><th>Par</th><th>Distance (yds)</th><th>Stroke index</th></tr>
         </thead>
         <tbody>
           {% for i in range(1, 19) %}
@@ -30,6 +30,7 @@
             <tr>
               <td>{{ i }}</td>
               <td><input type="number" name="par_{{ i }}" min="3" max="6" value="{{ h.par if h else 4 }}" required></td>
+              <td><input type="number" class="hole-distance" name="yds_{{ i }}" min="1" max="999" value="{{ h.distance if h and h.distance else '' }}" required></td>
               <td><input type="number" name="si_{{ i }}" min="1" max="18" value="{{ h.stroke_index if h else i }}" required{% if duplicate_si_holes is defined and i in duplicate_si_holes %} class="input-duplicate-si" aria-invalid="true"{% endif %}></td>
             </tr>
           {% endfor %}
@@ -65,17 +66,21 @@
           var holeIdx = col("hole", ["hole_number", "no", "#"]);
           var parIdx = col("par");
           var siIdx = col("si", ["stroke_index", "strokeindex", "index"]);
+          var ydsIdx = col("yds", ["yards", "distance", "dist", "length"]);
           if (holeIdx < 0 || parIdx < 0 || siIdx < 0) return;
           for (var r = 1; r < lines.length; r++) {
             var cells = lines[r].split(",");
             var hole = parseInt(cells[holeIdx], 10);
             var par = parseInt(cells[parIdx], 10);
             var si = parseInt(cells[siIdx], 10);
+            var yds = ydsIdx >= 0 ? parseInt(cells[ydsIdx], 10) : NaN;
             if (!hole || hole < 1 || hole > 18) continue;
             var parEl = document.querySelector('input[name="par_' + hole + '"]');
             var siEl = document.querySelector('input[name="si_' + hole + '"]');
+            var ydsEl = document.querySelector('input[name="yds_' + hole + '"]');
             if (parEl && !isNaN(par)) parEl.value = par;
             if (siEl && !isNaN(si)) siEl.value = si;
+            if (ydsEl && !isNaN(yds)) ydsEl.value = yds;
           }
         };
         reader.readAsText(file);

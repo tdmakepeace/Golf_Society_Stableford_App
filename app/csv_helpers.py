@@ -52,16 +52,17 @@ def iter_society_users_from_csv(
         yield email, password, friendly_name
 
 
-def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int]]:
+def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int, int | None]]:
     """
-    Parse CSV with hole, par, and stroke index columns.
-    Returns sorted list of (hole_number, par, stroke_index) for holes 1–18.
+    Parse CSV with hole, par, stroke index, and optional distance columns.
+    Returns sorted list of (hole_number, par, stroke_index, distance_yards_or_none)
+    for holes 1–18. Distance accepts yds, yards, or distance.
     """
     reader = csv.DictReader(io.StringIO(content))
     if not reader.fieldnames:
         raise ValueError("The CSV file must include a header row.")
 
-    holes: dict[int, tuple[int, int]] = {}
+    holes: dict[int, tuple[int, int, int | None]] = {}
     for raw in reader:
         d = {_norm(k): (v or "").strip() for k, v in raw.items() if k}
         hole_s = d.get("hole") or d.get("hole_number") or d.get("no") or d.get("#")
@@ -72,6 +73,7 @@ def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int]]:
             or d.get("strokeindex")
             or d.get("index")
         )
+        yds_s = d.get("yds") or d.get("yards") or d.get("distance") or d.get("dist")
         if not hole_s or not par_s or not si_s:
             continue
         try:
@@ -82,15 +84,27 @@ def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int]]:
             raise ValueError(
                 f"Invalid hole data (hole={hole_s!r}, par={par_s!r}, si={si_s!r})."
             ) from e
+        distance: int | None = None
+        if yds_s:
+            try:
+                distance = int(float(yds_s))
+            except ValueError as e:
+                raise ValueError(
+                    f"Hole {hole_s}: invalid distance {yds_s!r}."
+                ) from e
         if hole_num < 1 or hole_num > 18:
             raise ValueError(f"Hole number must be 1–18, got {hole_num}.")
         if par < 3 or par > 6:
             raise ValueError(f"Hole {hole_num}: par must be between 3 and 6.")
         if si < 1 or si > 18:
             raise ValueError(f"Hole {hole_num}: stroke index must be 1–18.")
+        if distance is not None and (distance < 1 or distance > 999):
+            raise ValueError(
+                f"Hole {hole_num}: distance must be between 1 and 999 yards."
+            )
         if hole_num in holes:
             raise ValueError(f"Duplicate hole number {hole_num} in CSV.")
-        holes[hole_num] = (par, si)
+        holes[hole_num] = (par, si, distance)
 
     if len(holes) != 18:
         missing = sorted(set(range(1, 19)) - set(holes.keys()))
@@ -102,4 +116,4 @@ def parse_course_holes_from_csv(content: str) -> list[tuple[int, int, int]]:
     if len(set(sis)) != 18:
         raise ValueError("Stroke indexes must be unique 1–18 across all holes.")
 
-    return [(i, holes[i][0], holes[i][1]) for i in range(1, 19)]
+    return [(i, holes[i][0], holes[i][1], holes[i][2]) for i in range(1, 19)]

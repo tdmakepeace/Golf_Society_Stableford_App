@@ -124,9 +124,11 @@ Points vs par:
 
 - Courses are shared across societies.
 - Each course has exactly 18 holes.
-- **New course:** enter name and postcode, then either fill the hole table manually or select a CSV with columns **`hole`**, **`par`**, and **`si`** (18 rows). The CSV fills the table in the browser; you can edit values before saving.
+- **New course:** enter name and postcode, then either fill the hole table manually or select a CSV with columns **`hole`**, **`par`**, **`si`**, and **`yds`** (18 rows; `yards` or `distance` also accepted). The CSV fills the table in the browser; you can edit values before saving. Distance is the hole length in yards.
+- **Unscored holes** count as 10 shots in the displayed round total. A card with 82 shots entered and 4 holes blank shows **82(+40, 122)**. A complete card shows only the entered total. Stableford points still count only holes that have a score.
 - Hole constraints:
   - Par: `3..6`
+  - Distance: `1..999` yards
   - Stroke index: `1..18`, unique per course (**1 = hardest**, **18 = easiest**, matching a standard UK scorecard)
 - Course deletion allowed only when unused by competitions.
 

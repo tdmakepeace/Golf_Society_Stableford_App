@@ -127,9 +127,10 @@ def dashboard():
 
 
 def _parse_course_holes_from_form(form, *, require_unique_si: bool = True):
-    """Return (pars, sis) lists or raise ValueError."""
+    """Return (pars, sis, distances) lists or raise ValueError. Distances are yards."""
     pars = []
     sis = []
+    distances = []
     for i in range(1, 19):
         try:
             p = int(form.get(f"par_{i}", "4"))
@@ -140,8 +141,16 @@ def _parse_course_holes_from_form(form, *, require_unique_si: bool = True):
             raise ValueError(f"Hole {i}: par must be between 3 and 6.")
         if si < 1 or si > 18:
             raise ValueError(f"Hole {i}: stroke index must be 1–18.")
+        raw_yds = (form.get(f"yds_{i}") or "").strip()
+        try:
+            yds = int(raw_yds)
+        except (TypeError, ValueError):
+            raise ValueError(f"Hole {i}: distance must be a whole number of yards.")
+        if yds < 1 or yds > 999:
+            raise ValueError(f"Hole {i}: distance must be between 1 and 999 yards.")
         pars.append(p)
         sis.append(si)
+        distances.append(yds)
     if require_unique_si and len(set(sis)) != 18:
         dup_holes = _duplicate_si_hole_numbers(sis)
         holes_str = ", ".join(str(h) for h in sorted(dup_holes))
@@ -149,7 +158,7 @@ def _parse_course_holes_from_form(form, *, require_unique_si: bool = True):
             f"Stroke indexes must be unique 1–18 across all holes. "
             f"Duplicate values highlighted on hole(s): {holes_str}."
         )
-    return pars, sis
+    return pars, sis, distances
 
 
 def _duplicate_si_hole_numbers(sis: list[int]) -> set[int]:
@@ -170,6 +179,7 @@ def _holes_from_form_for_display(form) -> list[SimpleNamespace]:
     for i in range(1, 19):
         par_raw = form.get(f"par_{i}", "")
         si_raw = form.get(f"si_{i}", "")
+        yds_raw = (form.get(f"yds_{i}") or "").strip()
         try:
             par = int(par_raw)
         except (TypeError, ValueError):
@@ -178,15 +188,21 @@ def _holes_from_form_for_display(form) -> list[SimpleNamespace]:
             si = int(si_raw)
         except (TypeError, ValueError):
             si = i
+        try:
+            distance = int(yds_raw) if yds_raw else None
+        except (TypeError, ValueError):
+            distance = None
         holes.append(
-            SimpleNamespace(hole_number=i, par=par, stroke_index=si)
+            SimpleNamespace(
+                hole_number=i, par=par, stroke_index=si, distance=distance
+            )
         )
     return holes
 
 
 def _duplicate_si_holes_from_form(form) -> set[int]:
     try:
-        _, sis = _parse_course_holes_from_form(form, require_unique_si=False)
+        _, sis, _ = _parse_course_holes_from_form(form, require_unique_si=False)
     except ValueError:
         return set()
     return _duplicate_si_hole_numbers(sis)
@@ -226,7 +242,7 @@ def course_new():
             )
 
         try:
-            pars, sis = _parse_course_holes_from_form(request.form)
+            pars, sis, distances = _parse_course_holes_from_form(request.form)
         except ValueError as e:
             flash(str(e), "error")
             return _course_form_error(
@@ -250,6 +266,7 @@ def course_new():
                     hole_number=i + 1,
                     par=pars[i],
                     stroke_index=sis[i],
+                    distance=distances[i],
                 )
             )
         db.session.commit()
@@ -279,7 +296,7 @@ def course_edit(course_id: int):
             )
 
         try:
-            pars, sis = _parse_course_holes_from_form(request.form)
+            pars, sis, distances = _parse_course_holes_from_form(request.form)
         except ValueError as e:
             flash(str(e), "error")
             return _course_form_error(
@@ -294,6 +311,7 @@ def course_edit(course_id: int):
         for idx, h in enumerate(holes):
             h.par = pars[idx]
             h.stroke_index = sis[idx]
+            h.distance = distances[idx]
         db.session.commit()
         flash("Course updated.", "success")
         return redirect(url_for("admin.dashboard"))
@@ -538,6 +556,7 @@ def competition_player_scores(comp_id: int, user_id: int):
         playing_handicap=pr["playing_handicap"],
         course_par_total=pr["course_par_total"],
         gross_total=pr["gross_total"],
+        gross_display=pr["gross_display"],
         target_gross_total=pr["target_gross_total"],
     )
 
@@ -577,12 +596,14 @@ def competition_results(comp_id: int):
         .all()
     )
     course_par_total = sum(h.par for h in holes)
+    known_distances = [h.distance for h in holes if h.distance]
     return render_template(
         "admin/results.html",
         competition=comp,
         leaderboard=board,
         holes=holes,
         course_par_total=course_par_total,
+        course_distance_total=sum(known_distances) if known_distances else None,
     )
 
 
@@ -601,12 +622,14 @@ def competition_results_pdf(comp_id: int):
         .all()
     )
     course_par_total = sum(h.par for h in holes)
+    known_distances = [h.distance for h in holes if h.distance]
     html = render_template(
         "admin/results_pdf.html",
         competition=comp,
         leaderboard=board,
         holes=holes,
         course_par_total=course_par_total,
+        course_distance_total=sum(known_distances) if known_distances else None,
     )
     from .pdf_export import html_to_pdf_bytes
 

@@ -22,7 +22,7 @@
             <td>{{ loop.index }}</td>
             <td>{{ row.display_label }}</td>
             <td>{{ row.playing_handicap }}</td>
-            <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td class="gross-with-blanks">{{ row.gross_display }}</td>
             <td><strong>{{ row.total_points }}</strong></td>
           </tr>
         {% endfor %}
@@ -89,7 +89,7 @@
               {% for h in holes %}
                 <td>{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
               {% endfor %}
-              <td>{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+              <td class="gross-with-blanks">{{ row.gross_display }}</td>
               <td class="result-pts-cell"><strong>{{ row.total_points }}</strong></td>
             </tr>
           </tbody>
@@ -99,7 +99,7 @@
   </section>
 
   <section class="card">
-    <h2>Course — par and stroke index</h2>
+    <h2>Course — par, yards, and stroke index</h2>
     <div class="table-scroll">
       <table class="data compact">
         <thead>
@@ -118,6 +118,13 @@
               <td>{{ h.par }}</td>
             {% endfor %}
             <td><strong>{{ course_par_total }}</strong></td>
+          </tr>
+          <tr>
+            <th scope="row">Yds</th>
+            {% for h in holes %}
+              <td>{{ h.distance if h.distance else '—' }}</td>
+            {% endfor %}
+            <td>{{ course_distance_total if course_distance_total is not none else '—' }}</td>
           </tr>
           <tr>
             <th scope="row">SI</th>

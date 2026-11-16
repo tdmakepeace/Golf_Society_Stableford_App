@@ -253,6 +253,10 @@ def run_sqlite_legacy_migrations() -> None:
                     )
                 )
 
+        if insp.has_table("holes"):
+            if "distance" not in _cols("holes"):
+                conn.execute(text("ALTER TABLE holes ADD COLUMN distance INTEGER"))
+
         if not insp.has_table("app_settings"):
             conn.execute(
                 text(

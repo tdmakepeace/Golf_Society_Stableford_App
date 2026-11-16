@@ -211,6 +211,7 @@ def competition_scorecard(comp_id: int):
         playing_handicap=pr["playing_handicap"],
         course_par_total=pr["course_par_total"],
         gross_total=pr["gross_total"],
+        gross_display=pr["gross_display"],
         target_gross_total=pr["target_gross_total"],
     )
 
@@ -255,6 +256,9 @@ def competition_match(comp_id: int):
 
         nav = request.form.get("nav", "stay")
         idx = hole_numbers.index(current)
+        if nav == "home" or (nav == "next" and idx >= len(hole_numbers) - 1):
+            flash("Score saved.", "success")
+            return redirect(url_for("user.dashboard"))
         if nav == "prev" and idx > 0:
             return redirect(hole_url(hole_numbers[idx - 1]))
         if nav == "next" and idx < len(hole_numbers) - 1:
@@ -284,6 +288,7 @@ def competition_match(comp_id: int):
         prev_hole=hole_numbers[idx - 1] if idx > 0 else None,
         next_hole=hole_numbers[idx + 1] if idx < len(hole_numbers) - 1 else None,
         total_points=pr["total_points"],
+        gross_display=pr["gross_display"],
         playing_handicap=pr["playing_handicap"],
         holes_entered=pr["holes_entered"],
         progress_pct=round((idx + 1) / len(hole_numbers) * 100),

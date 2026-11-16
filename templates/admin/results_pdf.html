@@ -31,21 +31,21 @@
       text-align: left;
       width: 8%;
     }
-    .leaderboard-table th.pos, .leaderboard-table td.pos { width: 10%; }
+    .leaderboard-table th.pos, .leaderboard-table td.pos { width: 8%; }
     .leaderboard-table th.player, .leaderboard-table td.player {
       text-align: left;
-      width: 30%;
+      width: 44%;
     }
     .leaderboard-table th.hcp, .leaderboard-table td.hcp { width: 10%; }
-    .leaderboard-table th.gross, .leaderboard-table td.gross { width: 10%; }
+    .leaderboard-table th.gross, .leaderboard-table td.gross { width: 28%; }
     .leaderboard-table th.points, .leaderboard-table td.points { width: 10%; }
     .score-table th.hole,
     .score-table td.hole {
-      width: 4.89%;
+      width: 4.2%;
     }
     .score-table th.total,
     .score-table td.total {
-      width: 4%;
+      width: 16.4%;
     }
     .section { page-break-inside: avoid; }
     .player-block { margin-bottom: 6pt; page-break-inside: avoid; }
@@ -80,7 +80,7 @@
             <td class="pos">{{ loop.index }}</td>
             <td class="player">{{ row.display_label }}</td>
             <td class="hcp">{{ row.playing_handicap }}</td>
-            <td class="gross">{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td class="gross">{{ row.gross_display }}</td>
             <td class="points"><strong>{{ row.total_points }}</strong></td>
           </tr>
         {% endfor %}
@@ -108,7 +108,7 @@
             {% for h in holes %}
               <td class="hole">{{ row.gross_by_hole.get(h.hole_number, '—') }}</td>
             {% endfor %}
-            <td class="total">{{ row.gross_total if row.gross_total is not none else '—' }}</td>
+            <td class="total">{{ row.gross_display }}</td>
           </tr>
           <tr>
             <th class="player" scope="row">Par</th>
@@ -130,7 +130,7 @@
   {% endfor %}
 
   <div class="section">
-    <h2>Course — par and stroke index</h2>
+    <h2>Course — par, yards, and stroke index</h2>
     <table class="score-table">
       <thead>
         <tr>
@@ -148,6 +148,13 @@
             <td class="hole">{{ h.par }}</td>
           {% endfor %}
           <td class="total"><strong>{{ course_par_total }}</strong></td>
+        </tr>
+        <tr>
+          <th class="player" scope="row">Yds</th>
+          {% for h in holes %}
+            <td class="hole">{{ h.distance if h.distance else '—' }}</td>
+          {% endfor %}
+          <td class="total">{{ course_distance_total if course_distance_total is not none else '—' }}</td>
         </tr>
         <tr>
           <th class="player" scope="row">SI</th>

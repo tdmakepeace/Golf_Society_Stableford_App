@@ -32,6 +32,7 @@
           <tr>
             <th>Hole</th>
             <th>Par</th>
+            <th>Yds</th>
             <th>SI</th>
             <th>HCP shots</th>
             <th>Par + HCP<br><span class="th-sub">(gross for net par)</span></th>
@@ -44,6 +45,7 @@
             <tr>
               <td>{{ r.hole }}</td>
               <td>{{ r.par }}</td>
+              <td>{{ r.distance if r.distance else '—' }}</td>
               <td>{{ r.stroke_index }}</td>
               <td>{{ r.strokes_received }}</td>
               <td>{{ r.net_par_gross }}</td>
@@ -61,15 +63,15 @@
         </tbody>
         <tfoot>
           <tr>
-            <th colspan="4">Round totals</th>
+            <th colspan="5">Round totals</th>
             <th>{{ target_gross_total }}</th>
-            <th>{{ gross_total if gross_total is not none else '—' }}</th>
+            <th class="gross-with-blanks">{{ gross_display }}</th>
             <th><strong>{{ total_points }}</strong></th>
           </tr>
         </tfoot>
       </table>
     </div>
-    <p class="muted small">Par is the course hole par. “Par + HCP” is the gross score that would be net par on that hole with your playing handicap.</p>
+    <p class="muted small">Par is the course hole par. “Par + HCP” is the gross score that would be net par on that hole with your playing handicap. Yds is the hole length. Unscored holes count as 10 shots in the total, shown as entered shots(+added, final) — for example 82(+40, 122).</p>
     {% if not scorecard_readonly %}
       <button type="submit" class="btn primary">Save scores</button>
     {% endif %}

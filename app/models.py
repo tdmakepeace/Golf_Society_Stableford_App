@@ -168,6 +168,7 @@ class Hole(db.Model):
     hole_number = db.Column(db.Integer, nullable=False)
     par = db.Column(db.Integer, nullable=False)
     stroke_index = db.Column(db.Integer, nullable=False)
+    distance = db.Column(db.Integer, nullable=True)  # yards
 
     __table_args__ = (
         db.UniqueConstraint("course_id", "hole_number", name="uq_course_hole"),
